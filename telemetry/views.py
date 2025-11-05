@@ -3,6 +3,8 @@ from rest_framework.permissions import IsAuthenticated
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from django.shortcuts import get_object_or_404
+from django.utils import timezone
+from datetime import timedelta
 from .models import Location, Telemetry, AlertConfig, AlertHistory
 from .serializers import LocationSerializer, TelemetrySerializer, AlertConfigSerializer, AlertHistorySerializer
 from .permissions import IsAdminOrOwner
@@ -22,8 +24,27 @@ class WeatherByLocation(APIView):
 
     def get(self, request, location_id):
         location = get_object_or_404(Location, id=location_id, added_by_user=request.user)
+        try:
+            hours = int(request.GET.get('hours',24))
+        except ValueError:
+            hours = 24
+        since = timezone.now() - timedelta(hours=hours)
+        qs = Telemetry.objects.filter(location=location, timestamp__gte=since).order_by('timestamp')
+        latest = qs.last()
+        
+        def row(x):
+            return {
+                'timestamp': x.timestamp.isoformat(),
+                'temperature_c': x.temperature_c,
+                'wind_speed_ms': x.wind_speed_ms,
+                'humidity': x.humidity
+            }
 
-        return Response([])
+        return Response({
+            'location': LocationSerializer(location).data,
+            'latest': row(latest) if latest else None,
+            'series': [row(x) for x in qs]
+        })
 
 class AlertConfigCreate(APIView):
     permission_classes = [IsAuthenticated]
@@ -43,8 +64,8 @@ class AlertConfigCreate(APIView):
 
 
 class AlertHistoryList(APIView):
-    permission_classes = [IsAuthenticated]
-
+    permission_classes = [IsAuthenticated, IsAdminOrOwner]
+    
     def get(self, request):
         qs = AlertHistory.objects.filter(location__added_by_user=request.user)
         serializer = AlertHistorySerializer(qs, many=True)

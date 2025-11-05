@@ -3,7 +3,6 @@ import requests
 from django.conf import settings
 from typing import Dict, Any
 
-from requests.sessions import RequestsCookieJar
 
 def _get_api_key()->str:
     key = getattr(settings,"OWM_API_KEY","") or os.getenv("OWM_API_KEY","")

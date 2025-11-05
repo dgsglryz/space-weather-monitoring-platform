@@ -62,7 +62,7 @@ ROOT_URLCONF = 'core.urls'
 TEMPLATES = [
     {
         'BACKEND': 'django.template.backends.django.DjangoTemplates',
-        'DIRS': [],
+        'DIRS': [BASE_DIR / 'templates'],
         'APP_DIRS': True,
         'OPTIONS': {
             'context_processors': [
@@ -133,10 +133,10 @@ OWM_API_KEY = os.getenv("OWM_API_KEY","")
 CELERY_BROKER_URL = os.getenv('CELERY_BROKER_URL','redis://localhost:6379/0')
 CELERY_RESULT_BACKEND = os.getenv('CELERY_RESULT_BACKEND','redis://localhost:6379/1')
 
-CELERY_BEAT_SCHEDULER = {
-    'fetch_weather_every_minute_dev': {
+CELERY_BEAT_SCHEDULE = {
+    'fetch_weather_30min': {
         'task' : 'telemetry.tasks.fetch_and_store_weather',
-        'schedule' : crontab(minute='*/1')
+        'schedule' : crontab(minute='*/30')
     }
 }
 

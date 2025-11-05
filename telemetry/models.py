@@ -20,6 +20,12 @@ class Telemetry(models.Model):
     wind_speed_ms=models.FloatField(null=True, blank=True)
     humidity=models.FloatField(null=True, blank=True)
 
+    class Meta:
+        unique_together = ('location','timestamp')
+        indexes = [
+            models.Index(fields=['location','timestamp']),
+        ]
+
 class AlertConfig(models.Model):
     user=models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name="alert_configs")
     location=models.ForeignKey(Location, on_delete=models.CASCADE, related_name="alert_configs")
