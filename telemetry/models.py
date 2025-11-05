@@ -40,6 +40,16 @@ class AlertHistory(models.Model):
     value=models.FloatField()
     user_notified=models.BooleanField(default=False)
 
+class GeocodeCache(models.Model):
+    city_name=models.CharField(max_length=200, unique=True, db_index=True)
+    latitude=models.FloatField()
+    longitude=models.FloatField()
+    created_at=models.DateTimeField(auto_now_add=True)
+
+    def __str__(self):
+        return f'{self.city_name} - {self.latitude}, {self.longitude}'
+        
+
 
 
 

@@ -2,12 +2,14 @@ from rest_framework.generics import ListCreateAPIView, RetrieveUpdateAPIView
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.views import APIView
 from rest_framework.response import Response
-from django.shortcuts import get_object_or_404
+from django.shortcuts import get_object_or_404,render
 from django.utils import timezone
 from datetime import timedelta
 from .models import Location, Telemetry, AlertConfig, AlertHistory
 from .serializers import LocationSerializer, TelemetrySerializer, AlertConfigSerializer, AlertHistorySerializer
 from .permissions import IsAdminOrOwner
+from django.contrib.auth.decorators import login_required
+from django.utils.decorators import method_decorator
 
 class LocationListCreate(ListCreateAPIView):
     serializer_class = LocationSerializer
@@ -71,6 +73,17 @@ class AlertHistoryList(APIView):
         serializer = AlertHistorySerializer(qs, many=True)
         return Response(serializer.data)
 
+@method_decorator(login_required, name='dispatch')
+class DashboardView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        locs = Location.objects.filter(added_by_user=request.user).order_by('name')
+        first_id = locs[0].id if locs else None
+        return render(request,'dashboard.html',{
+            'locations': locs,
+            'first_location_id': first_id,
+        })
 
 
 

@@ -125,6 +125,7 @@ USE_TZ = True
 
 REST_FRAMEWORK = { "DEFAULT_AUTHENTICATION_CLASSES": (
     "rest_framework_simplejwt.authentication.JWTAuthentication",
+    'rest_framework.authentication.SessionAuthentication',
 ),
     "DEFAULT_PERMISSION_CLASSES": ( "rest_framework.permissions.IsAuthenticated", ),
 }
@@ -139,6 +140,8 @@ CELERY_BEAT_SCHEDULE = {
         'schedule' : crontab(minute='*/30')
     }
 }
+
+LOGIN_URL = '/admin/login/'
 
 
 # Static files (CSS, JavaScript, Images)

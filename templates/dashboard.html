@@ -1,0 +1,111 @@
+{% extends "base.html" %}
+{% block title %}Weather Dashboard{% endblock %}
+
+{% block body %}
+<h1>Weather Dashboard</h1>
+
+<div class="row card" style="margin:12px,0;"> 
+    <label>Location</label>
+    <select id="loc">
+        {%for l in locations%}
+        <option value="{{l.id}}"{% if l.id == first_location_id %} selected{% endif %}>
+            {{l.name}} {{l.latitude}} {{l.longitude}}
+        </option>
+        {% endfor %}
+    </select>
+
+    <label>Hours</label>
+    <input id="hours" type="number" value="24" min="1" max="168" style="width:80px;"/>
+
+    <button id="refresh" class="btn">Refresh</button>
+    <span id="status" class="muted"></span>
+    <span id="alertBadge" class="badge ok" style="display:none;margin-left:8px;"></span>
+</div>
+
+<div class="card">
+    <div id="chart" style="height:380px;"></div>
+</div>
+
+<div class="row" style="margin-top:12px;">
+    <div class="card">
+        <div id="latest" class="muted">latest: -</div>
+    </div>
+</div>
+
+<script>
+    async function fetchWeather(locId, hours){
+        const res = await fetch(`/api/weather/${locId}/?hours=${hours}`, {credentials: 'include'});
+        if(!res.ok) throw new Error('API Error' + res.status);
+        return await res.json();
+    }
+
+    function toTrace(series,key,name){
+        return {x:series.map(p=>p.timestamp), y:series.map(p=>p[key]), mode: 'lines', name};
+    }
+
+    function showAlertBadge(latest){
+        const el = document.getElementById('alertBadge');
+        if(!latest){el.style.display='none';return;}
+        
+        const alerting = (latest.temperature_c !==null && latest.temperature_c < 0)||
+        (latest.wind_speed_ms !==null && latest.wind_speed_ms > 10)||
+        (latest.humidity !==null && latest.humidity > 90);
+
+        if (alerting) {
+            el.textContent = 'ALERT';
+            el.className = 'badge warn';
+            el.style.display = 'inline-block';
+        } else {
+            el.textContent = 'OK';
+            el.className = 'badge ok';
+            el.style.display = 'inline-block';
+        }
+    }
+
+    async function draw() {
+  const locId = document.getElementById('loc').value;
+  const hours = document.getElementById('hours').value || 24;
+  const status = document.getElementById('status');
+  status.textContent = 'loading…';
+
+  try {
+    const data = await fetchWeather(locId, hours);
+    const s = data.series || [];
+    const traces = [
+      toTrace(s, 'temperature_c', 'Temp (°C)'),
+      Object.assign(toTrace(s, 'wind_speed_ms', 'Wind (m/s)'), { yaxis: 'y2' }),
+      toTrace(s, 'humidity', 'Humidity (%)'),
+    ];
+    Plotly.newPlot('chart', traces, {
+      title: `${data.location.name} — last ${hours}h`,
+      margin:{l:40,r:20,t:40,b:40},
+      xaxis:{ type:'date' },
+      yaxis:{ title:'Temperature (°C)' },
+      yaxis2:{ title:'Wind (m/s)', overlaying:'y', side:'right' }
+    }, {responsive:true});
+
+    const latestDiv = document.getElementById('latest');
+    if (data.latest) {
+      latestDiv.textContent = `latest @ ${data.latest.timestamp} — T=${data.latest.temperature_c}°C, W=${data.latest.wind_speed_ms} m/s, H=${data.latest.humidity}%`;
+    } else {
+      latestDiv.textContent = 'latest: —';
+    }
+
+    showAlertBadge(data.latest);
+    status.textContent = 'ok';
+  } catch (e) {
+    console.error(e);
+    status.textContent = 'error';
+  }
+}
+
+document.getElementById('refresh').addEventListener('click', draw);
+document.getElementById('loc').addEventListener('change', draw);
+document.addEventListener('DOMContentLoaded', draw);
+setInterval(() => {
+  const status = document.getElementById('status');
+  if (status.textContent === 'loading…') return;
+  draw();
+}, 60000);
+</script>
+{% endblock %}
