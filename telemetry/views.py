@@ -1,3 +1,57 @@
-from django.shortcuts import render
+from rest_framework.generics import ListCreateAPIView, RetrieveUpdateAPIView
+from rest_framework.permissions import IsAuthenticated
+from rest_framework.views import APIView
+from rest_framework.response import Response
+from django.shortcuts import get_object_or_404
+from .models import Location, Telemetry, AlertConfig, AlertHistory
+from .serializers import LocationSerializer, TelemetrySerializer, AlertConfigSerializer, AlertHistorySerializer
+from .permissions import IsAdminOrOwner
 
-# Create your views here.
+class LocationListCreate(ListCreateAPIView):
+    serializer_class = LocationSerializer
+    permission_classes = [IsAuthenticated]
+
+    def get_queryset(self):
+        return Location.objects.filter(added_by_user=self.request.user)
+
+    def perform_create(self, serializer):
+        serializer.save(added_by_user=self.request.user)
+
+class WeatherByLocation(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request, location_id):
+        location = get_object_or_404(Location, id=location_id, added_by_user=request.user)
+
+        return Response([])
+
+class AlertConfigCreate(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request):
+        serializer = AlertConfigSerializer(data=request.data)
+        if serializer.is_valid():
+            location = serializer.validated_data['location']
+
+            if location.added_by_user != request.user:
+                return Response({'error': 'Not your location'}, status=403)
+
+            serializer.save(user=request.user)
+            return Response(serializer.data, status=201)
+        
+        return Response(serializer.errors, status=400)
+
+
+class AlertHistoryList(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        qs = AlertHistory.objects.filter(location__added_by_user=request.user)
+        serializer = AlertHistorySerializer(qs, many=True)
+        return Response(serializer.data)
+
+
+
+
+
+

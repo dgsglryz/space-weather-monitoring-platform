@@ -12,6 +12,7 @@ https://docs.djangoproject.com/en/4.2/ref/settings/
 
 from pathlib import Path
 from dotenv import load_dotenv
+from celery.schedules import crontab
 import os
 
 load_dotenv()
@@ -24,7 +25,7 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 # See https://docs.djangoproject.com/en/4.2/howto/deployment/checklist/
 
 # SECURITY WARNING: keep the secret key used in production secret!
-SECRET_KEY = os.getenv("SECRET_KEY","dev_onyl")
+SECRET_KEY = os.getenv("SECRET_KEY","dev_only")
 
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = os.getenv("DEBUG","True") == "True"
@@ -43,6 +44,7 @@ INSTALLED_APPS = [
     'django.contrib.staticfiles',
     'telemetry',
     'rest_framework',
+    'django_celery_beat',
 ]
 
 MIDDLEWARE = [
@@ -125,6 +127,17 @@ REST_FRAMEWORK = { "DEFAULT_AUTHENTICATION_CLASSES": (
     "rest_framework_simplejwt.authentication.JWTAuthentication",
 ),
     "DEFAULT_PERMISSION_CLASSES": ( "rest_framework.permissions.IsAuthenticated", ),
+}
+
+OWM_API_KEY = os.getenv("OWM_API_KEY","")
+CELERY_BROKER_URL = os.getenv('CELERY_BROKER_URL','redis://localhost:6379/0')
+CELERY_RESULT_BACKEND = os.getenv('CELERY_RESULT_BACKEND','redis://localhost:6379/1')
+
+CELERY_BEAT_SCHEDULER = {
+    'fetch_weather_every_minute_dev': {
+        'task' : 'telemetry.tasks.fetch_and_store_weather',
+        'schedule' : crontab(minute='*/1')
+    }
 }
 
 

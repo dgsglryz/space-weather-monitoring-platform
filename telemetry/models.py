@@ -16,9 +16,9 @@ class Location(models.Model):
 class Telemetry(models.Model):
     location=models.ForeignKey(Location, on_delete=models.CASCADE, related_name="telemetry")
     timestamp=models.DateTimeField(db_index=True)
-    kp_index=models.FloatField(null=True, blank=True)
-    bz_nT=models.FloatField(null=True, blank=True)
-    solar_wind_kms=models.FloatField(null=True, blank=True)
+    temperature_c=models.FloatField(null=True, blank=True)
+    wind_speed_ms=models.FloatField(null=True, blank=True)
+    humidity=models.FloatField(null=True, blank=True)
 
 class AlertConfig(models.Model):
     user=models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name="alert_configs")
