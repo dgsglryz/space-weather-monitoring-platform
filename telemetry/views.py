@@ -10,6 +10,10 @@ from .serializers import LocationSerializer, TelemetrySerializer, AlertConfigSer
 from .permissions import IsAdminOrOwner
 from django.contrib.auth.decorators import login_required
 from django.utils.decorators import method_decorator
+from django.contrib import messages
+from django.shortcuts import redirect
+from .geocode import geocode_city
+from django.views import View
 
 class LocationListCreate(ListCreateAPIView):
     serializer_class = LocationSerializer
@@ -84,6 +88,53 @@ class DashboardView(APIView):
             'locations': locs,
             'first_location_id': first_id,
         })
+
+
+@method_decorator(login_required, name='dispatch')
+class LocationPageView(APIView):
+    template_name = 'locations.html'
+
+    def get(self, request):
+        qs = Location.objects.filter(added_by_user=request.user).order_by('name')
+        return render(request, self.template_name, {'locations': qs})
+
+    def post(self, request):
+        name = (request.POST.get('name') or '').strip()
+        lat = (request.POST.get('latitude') or '').strip()
+        lon = (request.POST.get('longitude') or '').strip()
+
+        if not name:
+            messages.error(request, "City name is required.")
+            return redirect('locations-page')
+
+        try:
+            if lat and lon:
+                latitude = float(lat)
+                longitude = float(lon)
+            else:
+                latitude, longitude = geocode_city(name)
+        except Exception:
+            messages.error(request, "Geocoding failed. Please provide coordinates.")
+            return redirect('locations-page')
+
+        Location.objects.create(
+            name=name, latitude=latitude, longitude=longitude,
+            added_by_user=request.user
+        )
+        messages.success(request, f"Location '{name}' added.")
+        return redirect('locations-page')
+
+
+@method_decorator(login_required, name='dispatch')
+class delete_location(APIView):
+    def post(self, request, pk):
+        loc = get_object_or_404(Location, pk=pk, added_by_user=request.user)
+        name = loc.name
+        loc.delete()
+        messages.success(request, f'Location "{name}" deleted.')
+        return redirect('locations-page')
+
+    
 
 
 

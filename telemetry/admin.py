@@ -1,6 +1,6 @@
 from django.contrib import admin
 from .models import Location, Telemetry, AlertConfig, AlertHistory
-from .geocode import geocode_city_owm
+from .geocode import geocode_city
 
 # Register your models here.
 @admin.register(Location)
@@ -10,7 +10,7 @@ class LocationAdmin(admin.ModelAdmin):
 
     def save_model(self, request, obj, form, change):
         if not obj.latitude or not obj.longitude:
-            coords = geocode_city_owm(obj.name)
+            coords = geocode_city(obj.name)
             if coords:
                 obj.latitude, obj.longitude = coords
 

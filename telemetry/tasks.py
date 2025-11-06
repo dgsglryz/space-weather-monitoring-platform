@@ -4,6 +4,7 @@ from django.db import transaction
 from .models import Location, Telemetry, AlertConfig, AlertHistory
 from .owm_client import fetch_current_by_coords
 
+
 @shared_task
 def fetch_and_store_weather():
     now = timezone.now()
@@ -46,4 +47,7 @@ def evaluate_alerts(location: Location, measurement: Telemetry):
         if ok:
             AlertHistory.objects.create(location=location, 
              condition=cfg.threshold_type,value=val,user_notified=False)
+
+
+
 

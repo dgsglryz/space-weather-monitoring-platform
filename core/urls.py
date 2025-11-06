@@ -17,16 +17,17 @@ Including another URLconf
 from django.contrib import admin
 from django.urls import path, include
 from rest_framework_simplejwt.views import TokenObtainPairView, TokenRefreshView
-from telemetry.views import DashboardView
+from telemetry.views import DashboardView, LocationPageView, delete_location
 from django.views.generic.base import RedirectView
 
 
 urlpatterns = [
-    path('',RedirectView.as_view(url='/dashboard/',permanent=False)),
+    path('', RedirectView.as_view(url='/dashboard/', permanent=False)),
     path('admin/', admin.site.urls),
     path('api/auth/token/', TokenObtainPairView.as_view()),
     path('api/auth/token/refresh/', TokenRefreshView.as_view()),
     path('api/', include('telemetry.urls')),
-    path('dashboard/', DashboardView.as_view(), name='dashboard')
-
+    path('dashboard/', DashboardView.as_view(), name='dashboard'),
+    path('locations-page/', LocationPageView.as_view(), name='locations-page'),
+    path('locations-page/delete/<int:pk>/delete/', delete_location.as_view(), name='delete-location'),
 ]
