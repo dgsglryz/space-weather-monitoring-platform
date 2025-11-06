@@ -38,6 +38,7 @@ class AlertConfig(models.Model):
 class AlertHistory(models.Model):
     triggered_at=models.DateTimeField(auto_now_add=True)
     location=models.ForeignKey(Location, on_delete=models.CASCADE, related_name="alert_history")
+    user=models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name="alert_history")
     condition=models.CharField(max_length=16)
     value=models.FloatField()
     user_notified=models.BooleanField(default=False)

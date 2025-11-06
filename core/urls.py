@@ -1,9 +1,11 @@
 from django.contrib import admin
 from django.urls import path, include
 from rest_framework_simplejwt.views import TokenObtainPairView, TokenRefreshView
-from telemetry.views import DashboardView, LocationPageView, delete_location
 from django.views.generic.base import RedirectView
-from telemetry.views_ssr import AlertConfigView, AlertConfigToggleView, AlertConfigDeleteView, AlertHistoryView
+from telemetry.views import (
+    LocationPageView, delete_location, DashboardView,
+    AlertConfigView, AlertConfigToggleView, AlertConfigDeleteView, AlertHistoryView
+)
 
 
 urlpatterns = [

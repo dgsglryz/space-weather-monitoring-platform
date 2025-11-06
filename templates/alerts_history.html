@@ -1,28 +1,28 @@
 {% extends "base.html" %} {% block body %}
 <h2>Alert History</h2>
-<div class="card" style="margin: 12px 0">
-  <table style="width: 100%; font-size: 14px">
+<div class="card" style="margin: 16px 0;padding:16px">
+  <table style="width: 100%; font-size: 14px;border-collapse:collapse">
     <thead>
-      <tr>
-        <th style="text-align: left">Time</th>
-        <th style="text-align: left">Location</th>
-        <th style="text-align: left">Condition</th>
-        <th style="text-align: left">Value</th>
-        <th style="text-align: left">Notified</th>
+      <tr style="border-bottom:2px solid #eee">
+        <th style="text-align: left;padding:12px 8px;font-weight:600">Time</th>
+        <th style="text-align: left;padding:12px 8px;font-weight:600">Location</th>
+        <th style="text-align: left;padding:12px 8px;font-weight:600">Condition</th>
+        <th style="text-align: left;padding:12px 8px;font-weight:600">Value</th>
+        <th style="text-align: left;padding:12px 8px;font-weight:600">Notified</th>
       </tr>
     </thead>
     <tbody>
       {% for a in history %}
-      <tr>
-        <td>{{ a.triggered_at|date:"Y-m-d H:i:s" }}</td>
-        <td>{{ a.location.name }}</td>
-        <td>{{ a.condition }}</td>
-        <td>{{ a.value }}</td>
-        <td>{% if a.user_notified %}Yes{% else %}No{% endif %}</td>
+      <tr style="border-bottom:1px solid #f0f0f0">
+        <td style="padding:12px 8px;line-height:1.6">{{ a.triggered_at|date:"Y-m-d H:i:s" }}</td>
+        <td style="padding:12px 8px;line-height:1.6">{{ a.location.name }}</td>
+        <td style="padding:12px 8px;line-height:1.6">{{ a.condition }}</td>
+        <td style="padding:12px 8px;line-height:1.6">{{ a.value }}</td>
+        <td style="padding:12px 8px;line-height:1.6">{% if a.user_notified %}Yes{% else %}No{% endif %}</td>
       </tr>
       {% empty %}
       <tr>
-        <td colspan="5">No alerts yet.</td>
+        <td colspan="5" style="padding:24px;text-align:center;color:#666">No alerts yet.</td>
       </tr>
       {% endfor %}
     </tbody>

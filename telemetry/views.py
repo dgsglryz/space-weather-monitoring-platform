@@ -2,16 +2,18 @@ from rest_framework.generics import ListCreateAPIView
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.views import APIView
 from rest_framework.response import Response
-from django.shortcuts import get_object_or_404,render
+from django.shortcuts import get_object_or_404, render, redirect
 from django.utils import timezone
+from django.db.models import Max
 from datetime import timedelta
-from .models import Location, Telemetry, AlertConfig, AlertHistory
-from .serializers import LocationSerializer, TelemetrySerializer, AlertConfigSerializer, AlertHistorySerializer
-from .permissions import IsAdminOrOwner
 from django.contrib.auth.decorators import login_required
 from django.utils.decorators import method_decorator
 from django.contrib import messages
-from django.shortcuts import redirect
+from django.views import View
+from django.contrib.auth.mixins import LoginRequiredMixin
+from .models import Location, Telemetry, AlertConfig, AlertHistory
+from .serializers import LocationSerializer, TelemetrySerializer, AlertConfigSerializer, AlertHistorySerializer
+from .permissions import IsAdminOrOwner
 from .geocode import geocode_city
 
 
@@ -38,19 +40,29 @@ class WeatherByLocation(APIView):
         since = timezone.now() - timedelta(hours=hours)
         qs = Telemetry.objects.filter(location=location, timestamp__gte=since).order_by('timestamp')
         latest = qs.last()
-        
-        def row(x):
-            return {
+
+        latest_data = None
+        if latest:
+            latest_data = {
+                'timestamp': latest.timestamp.isoformat(),
+                'temperature_c': latest.temperature_c,
+                'wind_speed_ms': latest.wind_speed_ms,
+                'humidity': latest.humidity
+            }
+
+        series = []
+        for x in qs:
+            series.append({
                 'timestamp': x.timestamp.isoformat(),
                 'temperature_c': x.temperature_c,
                 'wind_speed_ms': x.wind_speed_ms,
                 'humidity': x.humidity
-            }
+            })
 
         return Response({
             'location': LocationSerializer(location).data,
-            'latest': row(latest) if latest else None,
-            'series': [row(x) for x in qs]
+            'latest': latest_data,
+            'series': series
         })
 
 
@@ -75,22 +87,9 @@ class AlertHistoryList(APIView):
     permission_classes = [IsAuthenticated, IsAdminOrOwner]
     
     def get(self, request):
-        qs = AlertHistory.objects.filter(location__added_by_user=request.user)
+        qs = AlertHistory.objects.filter(user=request.user)
         serializer = AlertHistorySerializer(qs, many=True)
         return Response(serializer.data)
-
-
-@method_decorator(login_required, name='dispatch')
-class DashboardView(APIView):
-    permission_classes = [IsAuthenticated]
-
-    def get(self, request):
-        locs = Location.objects.filter(added_by_user=request.user).order_by('name')
-        first_id = locs[0].id if locs else None
-        return render(request,'dashboard.html',{
-            'locations': locs,
-            'first_location_id': first_id,
-        })
 
 
 @method_decorator(login_required, name='dispatch')
@@ -102,9 +101,9 @@ class LocationPageView(APIView):
         return render(request, self.template_name, {'locations': qs})
 
     def post(self, request):
-        name = (request.POST.get('name') or '').strip()
-        lat = (request.POST.get('latitude') or '').strip()
-        lon = (request.POST.get('longitude') or '').strip()
+        name = request.POST.get('name', '').strip()
+        lat = request.POST.get('latitude', '').strip()
+        lon = request.POST.get('longitude', '').strip()
 
         if not name:
             messages.error(request, "City name is required.")
@@ -120,7 +119,7 @@ class LocationPageView(APIView):
                     messages.error(request, "Geocoding failed. Please provide coordinates.")
                     return redirect('locations-page')
                 latitude, longitude = coords
-        except (ValueError, TypeError) as e:
+        except (ValueError, TypeError):
             messages.error(request, "Invalid coordinates. Please check your input.")
             return redirect('locations-page')
         except Exception:
@@ -128,7 +127,9 @@ class LocationPageView(APIView):
             return redirect('locations-page')
 
         Location.objects.create(
-            name=name, latitude=latitude, longitude=longitude,
+            name=name,
+            latitude=latitude,
+            longitude=longitude,
             added_by_user=request.user
         )
         messages.success(request, f"Location '{name}' added.")
@@ -143,3 +144,143 @@ class delete_location(APIView):
         loc.delete()
         messages.success(request, f'Location "{name}" deleted.')
         return redirect('locations-page')
+
+
+class AlertConfigView(LoginRequiredMixin, View):
+    template_name = 'alerts_config.html'
+    
+    def get(self, request):
+        locations = Location.objects.filter(added_by_user=request.user)
+        configs = AlertConfig.objects.filter(user=request.user).select_related('location').order_by('location__name')
+        return render(request, self.template_name, {'locations': locations, 'configs': configs})
+
+    def post(self, request):
+        loc_id = request.POST.get('location')
+        thr_type = request.POST.get('threshold_type')
+        thr_value = request.POST.get('threshold_value')
+        is_active = request.POST.get('is_active') == 'on'
+
+        loc = get_object_or_404(Location, id=loc_id, added_by_user=request.user)
+
+        try:
+            val = float(thr_value)
+        except (TypeError, ValueError):
+            messages.error(request, 'Invalid threshold value')
+            return redirect('alerts-config')
+
+        AlertConfig.objects.create(
+            user=request.user,
+            location=loc,
+            threshold_type=thr_type,
+            threshold_value=val,
+            is_active=is_active
+        )
+        messages.success(request, 'Alert configuration saved')
+        return redirect('alerts-config')
+
+
+class AlertConfigToggleView(LoginRequiredMixin, View):
+    def post(self, request, pk):
+        cfg = get_object_or_404(AlertConfig, id=pk, user=request.user)
+        cfg.is_active = not cfg.is_active
+        cfg.save()
+        messages.success(request, 'Alert configuration toggled')
+        return redirect('alerts-config')
+
+
+class AlertConfigDeleteView(LoginRequiredMixin, View):
+    def post(self, request, pk):
+        cfg = get_object_or_404(AlertConfig, id=pk, user=request.user)
+        cfg.delete()
+        messages.success(request, 'Alert configuration deleted')
+        return redirect('alerts-config')
+
+
+class AlertHistoryView(LoginRequiredMixin, View):
+    template_name = 'alerts_history.html'
+
+    def get(self, request):
+        history = AlertHistory.objects.filter(
+            user=request.user
+        ).select_related('location').order_by('-triggered_at')[:200]
+        return render(request, self.template_name, {'history': history})
+
+
+class DashboardView(LoginRequiredMixin, View):
+    template_name = 'dashboard.html'
+
+    def get(self, request):
+        locs = Location.objects.filter(added_by_user=request.user).order_by('name')
+        cards = []
+
+        location_ids = [loc.id for loc in locs]
+        latest_telemetry = {}
+        if location_ids:
+            latest_times = Telemetry.objects.filter(location_id__in=location_ids).values('location_id').annotate(
+                max_time=Max('timestamp')
+            )
+            for item in latest_times:
+                loc_id = item['location_id']
+                latest = Telemetry.objects.filter(location_id=loc_id, timestamp=item['max_time']).first()
+                if latest:
+                    latest_telemetry[loc_id] = latest
+
+        for loc in locs:
+            latest = latest_telemetry.get(loc.id)
+            status = self._status_for(loc, latest)
+            cards.append({'loc': loc, 'latest': latest, 'status': status})
+
+        first_id = locs.first().id if locs.exists() else None
+        series = []
+        if first_id:
+            since = timezone.now() - timedelta(hours=24)
+            telemetry = Telemetry.objects.filter(location_id=first_id, timestamp__gte=since).order_by('timestamp')
+            for x in telemetry:
+                series.append({
+                    'timestamp': x.timestamp.isoformat(),
+                    'temperature_c': x.temperature_c,
+                    'wind_speed_ms': x.wind_speed_ms,
+                    'humidity': x.humidity
+                })
+
+        return render(request, self.template_name, {
+            'locations': locs,
+            'cards': cards, 
+            'first_location_id': first_id,
+            'series_json': series
+        })
+
+    def _status_for(self, loc, latest):
+        if not latest:
+            return 'no data'
+        
+        active = AlertConfig.objects.filter(location=loc, user=self.request.user, is_active=True)
+        for cfg in active:
+            parts = cfg.threshold_type.split('_')
+            if len(parts) != 2:
+                continue
+            metric, op = parts
+            
+            if metric == 'temp':
+                val = latest.temperature_c
+            elif metric == 'wind':
+                val = latest.wind_speed_ms
+            elif metric == 'humidity':
+                val = latest.humidity
+            else:
+                continue
+                
+            if val is None:
+                continue
+                
+            if op == 'gt' and val > cfg.threshold_value:
+                return 'alert'
+            if op == 'lt' and val < cfg.threshold_value:
+                return 'alert'
+        
+        if latest.temperature_c is not None and latest.temperature_c < 5:
+            return 'warning'
+        if latest.wind_speed_ms is not None and latest.wind_speed_ms > 8:
+            return 'warning'
+            
+        return 'normal'
