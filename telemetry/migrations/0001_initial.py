@@ -29,9 +29,9 @@ class Migration(migrations.Migration):
             fields=[
                 ('id', models.BigAutoField(auto_created=True, primary_key=True, serialize=False, verbose_name='ID')),
                 ('timestamp', models.DateTimeField(db_index=True)),
-                ('kp_index', models.FloatField(blank=True, null=True)),
-                ('bz_nT', models.FloatField(blank=True, null=True)),
-                ('solar_wind_kms', models.FloatField(blank=True, null=True)),
+                ('temperature_c', models.FloatField(blank=True, null=True)),
+                ('wind_speed_ms', models.FloatField(blank=True, null=True)),
+                ('humidity', models.FloatField(blank=True, null=True)),
                 ('location', models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, related_name='telemetry', to='telemetry.location')),
             ],
         ),

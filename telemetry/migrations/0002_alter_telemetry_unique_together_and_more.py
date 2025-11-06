@@ -6,7 +6,7 @@ from django.db import migrations, models
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('telemetry', '0002_rename_bz_nt_telemetry_humidity_and_more'),
+        ('telemetry', '0001_initial'),
     ]
 
     operations = [

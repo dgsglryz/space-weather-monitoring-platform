@@ -1,24 +1,9 @@
-"""
-URL configuration for core project.
-
-The `urlpatterns` list routes URLs to views. For more information please see:
-    https://docs.djangoproject.com/en/4.2/topics/http/urls/
-Examples:
-Function views
-    1. Add an import:  from my_app import views
-    2. Add a URL to urlpatterns:  path('', views.home, name='home')
-Class-based views
-    1. Add an import:  from other_app.views import Home
-    2. Add a URL to urlpatterns:  path('', Home.as_view(), name='home')
-Including another URLconf
-    1. Import the include() function: from django.urls import include, path
-    2. Add a URL to urlpatterns:  path('blog/', include('blog.urls'))
-"""
 from django.contrib import admin
 from django.urls import path, include
 from rest_framework_simplejwt.views import TokenObtainPairView, TokenRefreshView
 from telemetry.views import DashboardView, LocationPageView, delete_location
 from django.views.generic.base import RedirectView
+from telemetry.views_ssr import AlertConfigView, AlertConfigToggleView, AlertConfigDeleteView, AlertHistoryView
 
 
 urlpatterns = [
@@ -30,4 +15,8 @@ urlpatterns = [
     path('dashboard/', DashboardView.as_view(), name='dashboard'),
     path('locations-page/', LocationPageView.as_view(), name='locations-page'),
     path('locations-page/delete/<int:pk>/delete/', delete_location.as_view(), name='delete-location'),
+    path('alerts-config/',AlertConfigView.as_view(),name='alerts-config'),
+    path('alerts-config/<int:pk>/toggle/',AlertConfigToggleView.as_view(),name='alerts-config-toggle'),
+    path('alerts-config/<int:pk>/delete/',AlertConfigDeleteView.as_view(),name='alerts-config-delete'),
+    path('alerts-history/',AlertHistoryView.as_view(),name='alerts-history')
 ]

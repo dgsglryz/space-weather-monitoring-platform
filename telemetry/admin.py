@@ -2,7 +2,7 @@ from django.contrib import admin
 from .models import Location, Telemetry, AlertConfig, AlertHistory
 from .geocode import geocode_city
 
-# Register your models here.
+
 @admin.register(Location)
 class LocationAdmin(admin.ModelAdmin):
     list_display=("name","latitude","longitude","added_by_user")
@@ -19,8 +19,6 @@ class LocationAdmin(admin.ModelAdmin):
         super().save_model(request, obj, form, change)
 
 
-
 admin.site.register(Telemetry)
 admin.site.register(AlertConfig)
-admin.site.register(AlertHistory)   
-
+admin.site.register(AlertHistory)

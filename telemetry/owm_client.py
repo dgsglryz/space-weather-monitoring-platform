@@ -10,6 +10,7 @@ def _get_api_key()->str:
         raise RuntimeError("OWM_API_KEY missing")
     return key
 
+
 def fetch_current_by_coords(latitude: float, longitude: float)->Dict[str, Any]:
     key= _get_api_key()
 

@@ -1,10 +1,45 @@
 {% extends "base.html" %}
 {% block title %}Weather Dashboard{% endblock %}
 
+{% block head %}
+<script src="https://cdn.plot.ly/plotly-2.32.0.min.js"></script>
+{% endblock %}
+
 {% block body %}
 <h1>Weather Dashboard</h1>
 
-<div class="row card" style="margin:12px,0;"> 
+{% if cards %}
+<div class="grid grid-3" style="display:grid;gap:12px;grid-template-columns:repeat(auto-fill,minmax(240px,1fr));margin:12px 0">
+  {% for item in cards %}
+  <div class="card" style="border:1px solid #eee;border-radius:12px;padding:12px">
+    <div style="display:flex;justify-content:space-between;align-items:center">
+      <strong>{{ item.loc.name }}</strong>
+      {% if item.status == "alert" %}
+        <span class="badge" style="background:#ffe6e6">ALERT</span>
+      {% elif item.status == "warning" %}
+        <span class="badge" style="background:#fff7e6">WARNING</span>
+      {% elif item.status == "normal" %}
+        <span class="badge" style="background:#e6ffed">OK</span>
+      {% else %}
+        <span class="badge">UNKNOWN</span>
+      {% endif %}
+    </div>
+    {% if item.latest %}
+      <div style="margin-top:8px">
+        <div>T: {{ item.latest.temperature_c|floatformat:1 }} °C</div>
+        <div>W: {{ item.latest.wind_speed_ms|floatformat:1 }} m/s</div>
+        <div>H: {{ item.latest.humidity|floatformat:0 }} %</div>
+        <div style="color:#666;font-size:12px">Updated: {{ item.latest.timestamp|timesince }} ago</div>
+      </div>
+    {% else %}
+      <div style="color:#666;font-size:12px;margin-top:8px">No data yet</div>
+    {% endif %}
+  </div>
+  {% endfor %}
+</div>
+{% endif %}
+
+<div class="row card" style="margin:12px 0;"> 
     <label>Location</label>
     <select id="loc">
         {%for l in locations%}

@@ -1,4 +1,4 @@
-from rest_framework.generics import ListCreateAPIView, RetrieveUpdateAPIView
+from rest_framework.generics import ListCreateAPIView
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.views import APIView
 from rest_framework.response import Response
@@ -13,7 +13,7 @@ from django.utils.decorators import method_decorator
 from django.contrib import messages
 from django.shortcuts import redirect
 from .geocode import geocode_city
-from django.views import View
+
 
 class LocationListCreate(ListCreateAPIView):
     serializer_class = LocationSerializer
@@ -24,6 +24,7 @@ class LocationListCreate(ListCreateAPIView):
 
     def perform_create(self, serializer):
         serializer.save(added_by_user=self.request.user)
+
 
 class WeatherByLocation(APIView):
     permission_classes = [IsAuthenticated]
@@ -52,6 +53,7 @@ class WeatherByLocation(APIView):
             'series': [row(x) for x in qs]
         })
 
+
 class AlertConfigCreate(APIView):
     permission_classes = [IsAuthenticated]
 
@@ -76,6 +78,7 @@ class AlertHistoryList(APIView):
         qs = AlertHistory.objects.filter(location__added_by_user=request.user)
         serializer = AlertHistorySerializer(qs, many=True)
         return Response(serializer.data)
+
 
 @method_decorator(login_required, name='dispatch')
 class DashboardView(APIView):
@@ -112,7 +115,14 @@ class LocationPageView(APIView):
                 latitude = float(lat)
                 longitude = float(lon)
             else:
-                latitude, longitude = geocode_city(name)
+                coords = geocode_city(name)
+                if not coords:
+                    messages.error(request, "Geocoding failed. Please provide coordinates.")
+                    return redirect('locations-page')
+                latitude, longitude = coords
+        except (ValueError, TypeError) as e:
+            messages.error(request, "Invalid coordinates. Please check your input.")
+            return redirect('locations-page')
         except Exception:
             messages.error(request, "Geocoding failed. Please provide coordinates.")
             return redirect('locations-page')
@@ -133,10 +143,3 @@ class delete_location(APIView):
         loc.delete()
         messages.success(request, f'Location "{name}" deleted.')
         return redirect('locations-page')
-
-    
-
-
-
-
-

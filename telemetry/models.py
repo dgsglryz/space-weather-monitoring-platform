@@ -2,7 +2,6 @@ from django.db import models
 from django.conf import settings
 
 
-# Create your models here.
 class Location(models.Model):
     name=models.CharField(max_length=120)
     latitude=models.FloatField(null=True, blank=True)
@@ -12,6 +11,7 @@ class Location(models.Model):
         on_delete=models.CASCADE,
         related_name="locations"
     )
+
 
 class Telemetry(models.Model):
     location=models.ForeignKey(Location, on_delete=models.CASCADE, related_name="telemetry")
@@ -26,6 +26,7 @@ class Telemetry(models.Model):
             models.Index(fields=['location','timestamp']),
         ]
 
+
 class AlertConfig(models.Model):
     user=models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name="alert_configs")
     location=models.ForeignKey(Location, on_delete=models.CASCADE, related_name="alert_configs")
@@ -33,12 +34,14 @@ class AlertConfig(models.Model):
     threshold_value=models.FloatField()
     is_active=models.BooleanField(default=True)
 
+
 class AlertHistory(models.Model):
     triggered_at=models.DateTimeField(auto_now_add=True)
     location=models.ForeignKey(Location, on_delete=models.CASCADE, related_name="alert_history")
     condition=models.CharField(max_length=16)
     value=models.FloatField()
     user_notified=models.BooleanField(default=False)
+
 
 class GeocodeCache(models.Model):
     city_name=models.CharField(max_length=200, unique=True, db_index=True)
@@ -48,8 +51,3 @@ class GeocodeCache(models.Model):
 
     def __str__(self):
         return f'{self.city_name} - {self.latitude}, {self.longitude}'
-        
-
-
-
-

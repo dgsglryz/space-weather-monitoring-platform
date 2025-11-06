@@ -4,8 +4,10 @@ from django.conf import settings
 from django.db import transaction
 from .models import GeocodeCache
 
+
 def _normalize(city: str):
     return (city or '').strip().lower()
+
 
 def _cache_get(city):
     key = _normalize(city)
@@ -15,6 +17,7 @@ def _cache_get(city):
     
     return None
 
+
 @transaction.atomic
 def _cache_set(city,lat,lon):
     key = _normalize(city)
@@ -22,6 +25,7 @@ def _cache_set(city,lat,lon):
     defaults={
         'latitude':float(lat),'longitude':float(lon)
     })
+
 
 def _provider_owm(city):
     key=getattr(settings,'OWM_API_KEY','') or os.getenv('OWM_API_KEY','')
@@ -38,6 +42,7 @@ def _provider_owm(city):
         return None
 
     return float(data[0]['lat']),float(data[0]['lon'])
+
 
 def _provider_openmeteo(city):
     url = "https://geocoding-api.open-meteo.com/v1/search"
@@ -88,13 +93,4 @@ def geocode_city(city,sleep_seconds=0.0):
     if sleep_seconds>0:
         time.sleep(sleep_seconds)
     return None
-
-
-
-
-
-    
-
-
-
 

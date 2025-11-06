@@ -7,19 +7,37 @@ from .owm_client import fetch_current_by_coords
 
 @shared_task
 def fetch_and_store_weather():
-    now = timezone.now()
     for loc in Location.objects.all():
         if loc.latitude is None or loc.longitude is None:
             continue
 
-        data = fetch_current_by_coords(loc.latitude, loc.longitude)
-        with transaction.atomic():
-            measurement = Telemetry.objects.create(location=loc, timestamp=now, 
-            temperature_c=data['temperature_c'],
-            wind_speed_ms=data['wind_speed_ms'],
-            humidity=data['humidity'])
-            evaluate_alerts(loc, measurement)
+        try:
+            data = fetch_current_by_coords(loc.latitude, loc.longitude)
+            now = timezone.now()
             
+            with transaction.atomic():
+                measurement, created = Telemetry.objects.get_or_create(
+                    location=loc,
+                    timestamp=now,
+                    defaults={
+                        'temperature_c': data['temperature_c'],
+                        'wind_speed_ms': data['wind_speed_ms'],
+                        'humidity': data['humidity']
+                    }
+                )
+                
+                if not created:
+                    measurement.temperature_c = data['temperature_c']
+                    measurement.wind_speed_ms = data['wind_speed_ms']
+                    measurement.humidity = data['humidity']
+                    measurement.save()
+                
+                evaluate_alerts(loc, measurement)
+        except Exception as e:
+            print(f"Error fetching weather for {loc.name}: {e}")
+            continue
+
+
 def _value_for_threshold(threshold_type: str, m: Telemetry):
     if threshold_type.startswith('temp'):
         return m.temperature_c
@@ -28,6 +46,7 @@ def _value_for_threshold(threshold_type: str, m: Telemetry):
     if threshold_type.startswith('humidity'):
         return m.humidity
     return None
+
 
 def evaluate_alerts(location: Location, measurement: Telemetry):
     configs = AlertConfig.objects.filter(location=location, is_active=True)
@@ -47,7 +66,3 @@ def evaluate_alerts(location: Location, measurement: Telemetry):
         if ok:
             AlertHistory.objects.create(location=location, 
              condition=cfg.threshold_type,value=val,user_notified=False)
-
-
-
-

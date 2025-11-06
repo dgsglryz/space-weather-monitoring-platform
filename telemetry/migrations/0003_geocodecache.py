@@ -6,7 +6,7 @@ from django.db import migrations, models
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('telemetry', '0003_alter_telemetry_unique_together_and_more'),
+        ('telemetry', '0002_alter_telemetry_unique_together_and_more'),
     ]
 
     operations = [
