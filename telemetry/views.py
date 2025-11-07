@@ -4,7 +4,7 @@ from rest_framework.views import APIView
 from rest_framework.response import Response
 from django.shortcuts import get_object_or_404, render, redirect
 from django.utils import timezone
-from django.db.models import Max
+from django.db.models import Max, Q
 from datetime import timedelta
 from django.contrib.auth.decorators import login_required
 from django.utils.decorators import method_decorator
@@ -298,14 +298,25 @@ class DashboardView(LoginRequiredMixin, View):
         location_ids = [loc.id for loc in locs]
         latest_telemetry = {}
         if location_ids:
+            # Get max timestamp per location in one query
             latest_times = Telemetry.objects.filter(location_id__in=location_ids).values('location_id').annotate(
                 max_time=Max('timestamp')
             )
-            for item in latest_times:
-                loc_id = item['location_id']
-                latest = Telemetry.objects.filter(location_id=loc_id, timestamp=item['max_time']).first()
-                if latest:
-                    latest_telemetry[loc_id] = latest
+            
+            # Build list of (location_id, timestamp) tuples for filtering
+            location_timestamp_pairs = [(item['location_id'], item['max_time']) for item in latest_times]
+            
+            # Fetch all latest telemetry objects in a single query using Q objects
+            if location_timestamp_pairs:
+                # Build Q object for OR conditions: (location_id=X AND timestamp=Y) OR ...
+                q_objects = Q()
+                for loc_id, max_time in location_timestamp_pairs:
+                    q_objects |= Q(location_id=loc_id, timestamp=max_time)
+                
+                # Fetch all matching telemetry in one query
+                latest_telemetry_objects = Telemetry.objects.filter(q_objects).select_related('location')
+                # Build dict for O(1) lookup
+                latest_telemetry = {t.location_id: t for t in latest_telemetry_objects}
 
         for loc in locs:
             latest = latest_telemetry.get(loc.id)
