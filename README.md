@@ -73,6 +73,10 @@ cp env.example .env
 python -m venv .venv && source .venv/bin/activate
 pip install -r requirements.txt
 python manage.py migrate
+
+# (optional) load sample data – expects a user named 'demo'
+python manage.py createsuperuser --username demo --email demo@example.com
+python manage.py loaddata fixtures/sample_data.json
 python manage.py runserver
 
 # in parallel terminals
@@ -83,6 +87,7 @@ celery -A core beat -l info
 - Vars: `.env.example` ships with working defaults (PostgreSQL db/user/password all `space`, Redis URLs, console email backend). Set `OWM_API_KEY` if you want live weather ingestion.
 - Alert emails: switch `EMAIL_BACKEND` to the SMTP backend and fill `EMAIL_HOST` (e.g. `smtp.gmail.com`), `EMAIL_HOST_USER`, `EMAIL_HOST_PASSWORD` (plus TLS/SSL flags) if you want outbound alerts instead of console logs.
 - Docker compose uses the same `.env`; update secrets there before deploying beyond local.
+- Sample data lives in `fixtures/sample_data.json` (Toronto, Vancouver, Houston + alerts + 24h telemetry); load it after creating the `demo` user as above.
 
 - Admin UI: `/admin/`
 - WebSocket feed: `ws://localhost:8000/ws/updates/`

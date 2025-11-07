@@ -1,0 +1,384 @@
+[
+  {
+    "model": "telemetry.location",
+    "pk": 4,
+    "fields": {
+      "name": "Toronto",
+      "latitude": 43.6534817,
+      "longitude": -79.3839347,
+      "added_by_user": [
+        "demo"
+      ]
+    }
+  },
+  {
+    "model": "telemetry.location",
+    "pk": 5,
+    "fields": {
+      "name": "Vancouver",
+      "latitude": 49.2608724,
+      "longitude": -123.113952,
+      "added_by_user": [
+        "demo"
+      ]
+    }
+  },
+  {
+    "model": "telemetry.location",
+    "pk": 6,
+    "fields": {
+      "name": "Houston",
+      "latitude": 29.7589382,
+      "longitude": -95.3676974,
+      "added_by_user": [
+        "demo"
+      ]
+    }
+  },
+  {
+    "model": "telemetry.alertconfig",
+    "pk": 3,
+    "fields": {
+      "user": [
+        "demo"
+      ],
+      "location": 4,
+      "threshold_type": "humidity_gt",
+      "threshold_value": 80.0,
+      "is_active": true
+    }
+  },
+  {
+    "model": "telemetry.alertconfig",
+    "pk": 4,
+    "fields": {
+      "user": [
+        "demo"
+      ],
+      "location": 4,
+      "threshold_type": "wind_gt",
+      "threshold_value": 93.0,
+      "is_active": true
+    }
+  },
+  {
+    "model": "telemetry.alertconfig",
+    "pk": 5,
+    "fields": {
+      "user": [
+        "demo"
+      ],
+      "location": 6,
+      "threshold_type": "wind_gt",
+      "threshold_value": 93.0,
+      "is_active": true
+    }
+  },
+  {
+    "model": "telemetry.alertconfig",
+    "pk": 6,
+    "fields": {
+      "user": [
+        "demo"
+      ],
+      "location": 6,
+      "threshold_type": "humidity_gt",
+      "threshold_value": 93.0,
+      "is_active": true
+    }
+  },
+  {
+    "model": "telemetry.alertconfig",
+    "pk": 7,
+    "fields": {
+      "user": [
+        "demo"
+      ],
+      "location": 5,
+      "threshold_type": "temp_lt",
+      "threshold_value": 10.0,
+      "is_active": true
+    }
+  },
+  {
+    "model": "telemetry.alertconfig",
+    "pk": 8,
+    "fields": {
+      "user": [
+        "demo"
+      ],
+      "location": 4,
+      "threshold_type": "temp_lt",
+      "threshold_value": 3.0,
+      "is_active": true
+    }
+  },
+  {
+    "model": "telemetry.alertconfig",
+    "pk": 9,
+    "fields": {
+      "user": [
+        "demo"
+      ],
+      "location": 6,
+      "threshold_type": "wind_gt",
+      "threshold_value": 2.0,
+      "is_active": true
+    }
+  },
+  {
+    "model": "telemetry.alertconfig",
+    "pk": 10,
+    "fields": {
+      "user": [
+        "demo"
+      ],
+      "location": 4,
+      "threshold_type": "temp_gt",
+      "threshold_value": 0.0,
+      "is_active": true
+    }
+  },
+  {
+    "model": "telemetry.telemetry",
+    "pk": 18,
+    "fields": {
+      "location": 4,
+      "timestamp": "2025-11-06T07:00:00.035Z",
+      "temperature_c": 5.16,
+      "wind_speed_ms": 11.18,
+      "humidity": 76.0
+    }
+  },
+  {
+    "model": "telemetry.telemetry",
+    "pk": 19,
+    "fields": {
+      "location": 5,
+      "timestamp": "2025-11-06T07:00:00.035Z",
+      "temperature_c": 10.33,
+      "wind_speed_ms": 5.66,
+      "humidity": 96.0
+    }
+  },
+  {
+    "model": "telemetry.telemetry",
+    "pk": 20,
+    "fields": {
+      "location": 6,
+      "timestamp": "2025-11-06T07:00:00.035Z",
+      "temperature_c": 18.32,
+      "wind_speed_ms": 2.06,
+      "humidity": 87.0
+    }
+  },
+  {
+    "model": "telemetry.telemetry",
+    "pk": 21,
+    "fields": {
+      "location": 4,
+      "timestamp": "2025-11-06T09:29:59.133Z",
+      "temperature_c": 3.53,
+      "wind_speed_ms": 11.18,
+      "humidity": 81.0
+    }
+  },
+  {
+    "model": "telemetry.telemetry",
+    "pk": 22,
+    "fields": {
+      "location": 5,
+      "timestamp": "2025-11-06T09:29:59.133Z",
+      "temperature_c": 10.53,
+      "wind_speed_ms": 7.72,
+      "humidity": 94.0
+    }
+  },
+  {
+    "model": "telemetry.telemetry",
+    "pk": 23,
+    "fields": {
+      "location": 4,
+      "timestamp": "2025-11-06T09:30:00.014Z",
+      "temperature_c": 3.53,
+      "wind_speed_ms": 11.18,
+      "humidity": 81.0
+    }
+  },
+  {
+    "model": "telemetry.telemetry",
+    "pk": 24,
+    "fields": {
+      "location": 6,
+      "timestamp": "2025-11-06T09:29:59.133Z",
+      "temperature_c": 17.36,
+      "wind_speed_ms": 0.0,
+      "humidity": 94.0
+    }
+  },
+  {
+    "model": "telemetry.telemetry",
+    "pk": 25,
+    "fields": {
+      "location": 5,
+      "timestamp": "2025-11-06T09:30:00.014Z",
+      "temperature_c": 10.53,
+      "wind_speed_ms": 7.72,
+      "humidity": 94.0
+    }
+  },
+  {
+    "model": "telemetry.telemetry",
+    "pk": 26,
+    "fields": {
+      "location": 6,
+      "timestamp": "2025-11-06T09:30:00.014Z",
+      "temperature_c": 17.36,
+      "wind_speed_ms": 0.0,
+      "humidity": 94.0
+    }
+  },
+  {
+    "model": "telemetry.telemetry",
+    "pk": 27,
+    "fields": {
+      "location": 4,
+      "timestamp": "2025-11-06T10:00:00.051Z",
+      "temperature_c": 3.6,
+      "wind_speed_ms": 11.18,
+      "humidity": 80.0
+    }
+  },
+  {
+    "model": "telemetry.telemetry",
+    "pk": 28,
+    "fields": {
+      "location": 5,
+      "timestamp": "2025-11-06T10:00:00.051Z",
+      "temperature_c": 10.45,
+      "wind_speed_ms": 7.72,
+      "humidity": 94.0
+    }
+  },
+  {
+    "model": "telemetry.telemetry",
+    "pk": 29,
+    "fields": {
+      "location": 6,
+      "timestamp": "2025-11-06T10:00:00.051Z",
+      "temperature_c": 17.14,
+      "wind_speed_ms": 0.0,
+      "humidity": 94.0
+    }
+  },
+  {
+    "model": "telemetry.telemetry",
+    "pk": 30,
+    "fields": {
+      "location": 4,
+      "timestamp": "2025-11-06T10:38:45.309Z",
+      "temperature_c": 3.47,
+      "wind_speed_ms": 11.18,
+      "humidity": 78.0
+    }
+  },
+  {
+    "model": "telemetry.telemetry",
+    "pk": 31,
+    "fields": {
+      "location": 5,
+      "timestamp": "2025-11-06T10:38:45.309Z",
+      "temperature_c": 10.35,
+      "wind_speed_ms": 6.71,
+      "humidity": 95.0
+    }
+  },
+  {
+    "model": "telemetry.telemetry",
+    "pk": 32,
+    "fields": {
+      "location": 6,
+      "timestamp": "2025-11-06T10:38:45.309Z",
+      "temperature_c": 16.93,
+      "wind_speed_ms": 0.0,
+      "humidity": 94.0
+    }
+  },
+  {
+    "model": "telemetry.telemetry",
+    "pk": 33,
+    "fields": {
+      "location": 4,
+      "timestamp": "2025-11-06T11:00:00.044Z",
+      "temperature_c": 3.48,
+      "wind_speed_ms": 11.18,
+      "humidity": 78.0
+    }
+  },
+  {
+    "model": "telemetry.telemetry",
+    "pk": 34,
+    "fields": {
+      "location": 5,
+      "timestamp": "2025-11-06T11:00:00.044Z",
+      "temperature_c": 10.38,
+      "wind_speed_ms": 6.71,
+      "humidity": 96.0
+    }
+  },
+  {
+    "model": "telemetry.telemetry",
+    "pk": 35,
+    "fields": {
+      "location": 6,
+      "timestamp": "2025-11-06T11:00:00.044Z",
+      "temperature_c": 16.87,
+      "wind_speed_ms": 0.0,
+      "humidity": 91.0
+    }
+  },
+  {
+    "model": "telemetry.telemetry",
+    "pk": 36,
+    "fields": {
+      "location": 4,
+      "timestamp": "2025-11-06T11:30:00.077Z",
+      "temperature_c": 3.6,
+      "wind_speed_ms": 11.18,
+      "humidity": 78.0
+    }
+  },
+  {
+    "model": "telemetry.telemetry",
+    "pk": 37,
+    "fields": {
+      "location": 5,
+      "timestamp": "2025-11-06T11:30:00.077Z",
+      "temperature_c": 10.33,
+      "wind_speed_ms": 7.72,
+      "humidity": 94.0
+    }
+  },
+  {
+    "model": "telemetry.telemetry",
+    "pk": 38,
+    "fields": {
+      "location": 6,
+      "timestamp": "2025-11-06T11:30:00.077Z",
+      "temperature_c": 16.8,
+      "wind_speed_ms": 0.0,
+      "humidity": 95.0
+    }
+  },
+  {
+    "model": "telemetry.telemetry",
+    "pk": 39,
+    "fields": {
+      "location": 4,
+      "timestamp": "2025-11-07T05:30:17.497Z",
+      "temperature_c": 35.0,
+      "wind_speed_ms": 5.0,
+      "humidity": 60.0
+    }
+  }
+]
