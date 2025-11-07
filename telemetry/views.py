@@ -18,6 +18,7 @@ from drf_spectacular.types import OpenApiTypes
 from django.core.cache import cache
 import json
 import logging
+from typing import Dict, Optional
 import requests
 from .models import Location, Telemetry, AlertConfig, AlertHistory
 from .serializers import (
@@ -80,7 +81,7 @@ def create_telemetry_from_weather_data(location, weather_data):
 
 def _summaries_from_queryset(qs):
     """Collect basic min/max/avg stats for a queryset."""
-    stats = {
+    stats: Dict[str, Optional[float]] = {
         'temp_min': None,
         'temp_max': None,
         'temp_avg': None,
