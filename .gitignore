@@ -21,4 +21,3 @@ celerybeat-schedule.db
 *.swp
 *.swo
 *~*.md
-docs/
