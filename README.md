@@ -6,6 +6,55 @@ Production-ready weather monitoring for satellite ground stations. Fetches OpenW
 - Diagram: view the Mermaid source directly at `docs/architecture.mmd`
 - Local demo: username `demo`, password `1234`
 
+```mermaid
+%% Space Weather Monitoring Platform - High Level Diagram
+graph TB
+    subgraph "External Providers"
+        OWM_WEATHER[OpenWeatherMap Weather API]
+        OWM_GEOCODE[OpenWeatherMap Geocode API]
+        OPENMETEO[Open-Meteo Geocoding API]
+        SMTP[SMTP Email Provider]
+    end
+
+    subgraph "Schedulers"
+        BEAT[Celery Beat\n*/30 min cadence]
+    end
+
+    subgraph "Workers"
+        WORKER[Celery Worker\ntelemetry.tasks.fetch_and_store_weather]
+    end
+
+    subgraph "Core Platform"
+        DJANGO[Django REST + Templates]
+        CHANNELS[Django Channels\nWebSocket Hub]
+        CACHE[(Redis Cache / Channel Layer)]
+        DB[(PostgreSQL 15)]
+    end
+
+    subgraph "Clients"
+        SSR[Server-rendered UI\nPlotly + vanilla JS]
+        API[JWT REST Consumers]
+        WS[WebSocket Subscribers]
+    end
+
+    BEAT -->|schedule| WORKER
+    WORKER -->|fetch weather| OWM_WEATHER
+    WORKER -->|persist telemetry| DB
+    WORKER -->|evaluate alerts| DJANGO
+    WORKER -.->|publish updates| CHANNELS
+    WORKER -->|send alert email| SMTP
+    DJANGO -->|primary geocode| OWM_GEOCODE
+    DJANGO -->|fallback geocode| OPENMETEO
+    DJANGO -->|cache responses| CACHE
+    DJANGO -->|ORM| DB
+    DJANGO -->|REST| API
+    DJANGO -->|SSR pages| SSR
+    DJANGO -->|WS handshake| CHANNELS
+    CHANNELS -->|push| WS
+    SSR -.->|read| CACHE
+    SSR -->|fallback| DB
+```
+
 ## Features
 
 - Django 4.2 + DRF backend (SSR + JWT; OpenAPI at `/api/docs/`)
