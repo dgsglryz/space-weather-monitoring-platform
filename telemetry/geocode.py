@@ -1,5 +1,6 @@
 import os
-import requests, time
+import requests
+import time
 from django.conf import settings
 from .models import GeocodeCache
 

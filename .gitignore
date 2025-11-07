@@ -1,4 +1,23 @@
 __pycache__/
+*.py[cod]
+*$py.class
 .env
 .venv
 .DS_Store
+
+# Django
+staticfiles/
+media/
+*.log
+db.sqlite3
+
+# Celery
+celerybeat-schedule
+celerybeat-schedule.db
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~

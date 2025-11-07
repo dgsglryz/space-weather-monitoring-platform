@@ -13,7 +13,8 @@
         background: #f8f9fa;
         line-height: 1.5;
       }
-      h1, h2 {
+      h1,
+      h2 {
         margin: 0 0 16px 0;
         font-size: 24px;
         font-weight: 600;
@@ -67,15 +68,53 @@
         color: #8b1a1a;
         border: 1px solid #f7c4c4;
       }
+      @media (max-width: 768px) {
+        body {
+          padding: 8px;
+        }
+        h1, h2 {
+          font-size: 20px;
+        }
+        .card {
+          padding: 12px;
+        }
+        .row {
+          flex-direction: column;
+          align-items: stretch;
+        }
+        .btn {
+          width: 100%;
+          text-align: center;
+          margin-bottom: 8px;
+        }
+      }
+      @media (max-width: 480px) {
+        body {
+          padding: 4px;
+        }
+        .card {
+          padding: 8px;
+        }
+      }
     </style>
     {% block head %}{% endblock %}
   </head>
   <body>
-    <div class="row" style="margin-bottom: 20px;padding:12px;background:#fff;border-radius:12px;border:1px solid #e0e0e0;box-shadow:0 2px 8px rgba(0,0,0,0.06)">
-      <a href="/dashboard/" class="btn" style="padding:8px 16px;text-decoration:none">Dashboard</a>
-      <a href="/locations-page/" class="btn" style="padding:8px 16px;text-decoration:none">Locations</a>
-      <a href="/alerts-config/" class="btn" style="padding:8px 16px;text-decoration:none">Alerts Config</a>
-      <a href="/alerts-history/" class="btn" style="padding:8px 16px;text-decoration:none">Alerts History</a>
+    <div
+      class="row"
+      style="
+        margin-bottom: 20px;
+        padding: 12px;
+        background: #fff;
+        border-radius: 12px;
+        border: 1px solid #e0e0e0;
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
+      "
+    >
+      <a href="/dashboard/" class="btn" style="padding: 8px 16px; text-decoration: none">Dashboard</a>
+      <a href="/locations-page/" class="btn" style="padding: 8px 16px; text-decoration: none">Locations</a>
+      <a href="/alerts-config/" class="btn" style="padding: 8px 16px; text-decoration: none">Alerts Config</a>
+      <a href="/alerts-history/" class="btn" style="padding: 8px 16px; text-decoration: none">Alerts History</a>
     </div>
     {% block body %}{% endblock %}
   </body>

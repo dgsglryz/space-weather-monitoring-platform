@@ -23,4 +23,4 @@ class AlertConfigSerializer(serializers.ModelSerializer):
 class AlertHistorySerializer(serializers.ModelSerializer):
     class Meta:
         model = AlertHistory
-        fields = ('triggered_at','condition','value','location','user')
+        fields = ('triggered_at','condition','value','location','user','user_notified')

@@ -12,9 +12,11 @@ from django.contrib import messages
 from django.views import View
 from django.contrib.auth.mixins import LoginRequiredMixin
 from .models import Location, Telemetry, AlertConfig, AlertHistory
-from .serializers import LocationSerializer, TelemetrySerializer, AlertConfigSerializer, AlertHistorySerializer
+from .serializers import LocationSerializer, AlertConfigSerializer, AlertHistorySerializer
 from .permissions import IsAdminOrOwner
 from .geocode import geocode_city
+from .owm_client import fetch_current_by_coords
+from django.core.cache import cache
 
 
 class LocationListCreate(ListCreateAPIView):
@@ -25,7 +27,21 @@ class LocationListCreate(ListCreateAPIView):
         return Location.objects.filter(added_by_user=self.request.user)
 
     def perform_create(self, serializer):
-        serializer.save(added_by_user=self.request.user)
+        location = serializer.save(added_by_user=self.request.user)
+        if location.latitude and location.longitude:
+            try:
+                data = fetch_current_by_coords(location.latitude, location.longitude)
+                if data:
+                    timestamp = timezone.now().replace(second=0, microsecond=0)
+                    Telemetry.objects.create(
+                        location=location,
+                        timestamp=timestamp,
+                        temperature_c=data.get('temperature_c'),
+                        wind_speed_ms=data.get('wind_speed_ms'),
+                        humidity=data.get('humidity')
+                    )
+            except Exception:
+                pass
 
 
 class WeatherByLocation(APIView):
@@ -34,9 +50,16 @@ class WeatherByLocation(APIView):
     def get(self, request, location_id):
         location = get_object_or_404(Location, id=location_id, added_by_user=request.user)
         try:
-            hours = int(request.GET.get('hours',24))
+            hours = int(request.query_params.get('hours',24))
         except ValueError:
             hours = 24
+
+        cache_key = f'weather:{request.user.id}:{location_id}:{hours}'
+        cached = cache.get(cache_key)
+        if cached:
+            return Response(cached)
+
+
         since = timezone.now() - timedelta(hours=hours)
         qs = Telemetry.objects.filter(location=location, timestamp__gte=since).order_by('timestamp')
         latest = qs.last()
@@ -59,11 +82,15 @@ class WeatherByLocation(APIView):
                 'humidity': x.humidity
             })
 
-        return Response({
+        response_data = {
             'location': LocationSerializer(location).data,
             'latest': latest_data,
             'series': series
-        })
+        }
+
+        cache.set(cache_key, response_data, timeout=30)
+
+        return Response(response_data)
 
 
 class AlertConfigCreate(APIView):
@@ -126,12 +153,26 @@ class LocationPageView(APIView):
             messages.error(request, "Geocoding failed. Please provide coordinates.")
             return redirect('locations-page')
 
-        Location.objects.create(
+        location = Location.objects.create(
             name=name,
             latitude=latitude,
             longitude=longitude,
             added_by_user=request.user
         )
+        try:
+            data = fetch_current_by_coords(latitude, longitude)
+            if data:
+                timestamp = timezone.now().replace(second=0, microsecond=0)
+                Telemetry.objects.create(
+                    location=location,
+                    timestamp=timestamp,
+                    temperature_c=data.get('temperature_c'),
+                    wind_speed_ms=data.get('wind_speed_ms'),
+                    humidity=data.get('humidity')
+                )
+        except Exception:
+            pass
+        
         messages.success(request, f"Location '{name}' added.")
         return redirect('locations-page')
 

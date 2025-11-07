@@ -19,9 +19,11 @@ INSTALLED_APPS = [
     'django.contrib.sessions',
     'django.contrib.messages',
     'django.contrib.staticfiles',
+    'channels',
     'telemetry',
     'rest_framework',
     'django_celery_beat',
+    'drf_spectacular',
 ]
 
 MIDDLEWARE = [
@@ -93,6 +95,15 @@ REST_FRAMEWORK = { "DEFAULT_AUTHENTICATION_CLASSES": (
     'rest_framework.authentication.SessionAuthentication',
 ),
     "DEFAULT_PERMISSION_CLASSES": ( "rest_framework.permissions.IsAuthenticated", ),
+    'DEFAULT_SCHEMA_CLASS': 'drf_spectacular.openapi.AutoSchema',
+    'DEFAULT_THROTTLE_CLASSES':[
+        'rest_framework.throttling.UserRateThrottle',
+        'rest_framework.throttling.AnonRateThrottle',
+    ],
+    'DEFAULT_THROTTLE_RATES':{
+        'user': '120/min',
+        'anon': '60/min',
+    },
 }
 
 OWM_API_KEY = os.getenv("OWM_API_KEY","")
@@ -105,6 +116,27 @@ CELERY_BEAT_SCHEDULE = {
         'schedule' : crontab(minute='*/30')
     }
 }
+
+CACHES = {
+    'default': {
+        'BACKEND': 'django.core.cache.backends.redis.RedisCache',
+        "LOCATION": os.getenv("CACHE_URL", "redis://redis:6379/2"),
+    }
+}
+
+CHANNEL_LAYERS = {
+    "default": {
+        "BACKEND": "channels_redis.core.RedisChannelLayer",
+        "CONFIG": {
+            "hosts": [(os.getenv("REDIS_HOST", "localhost"), int(os.getenv("REDIS_PORT", "6379")))],
+        },
+    }
+}
+
+EMAIL_BACKEND = 'django.core.mail.backends.console.EmailBackend'
+DEFAULT_FROM_EMAIL = os.getenv('DEFAULT_FROM_EMAIL','alert@example.com')
+
+ASGI_APPLICATION = "core.asgi.application"
 
 LOGIN_URL = '/admin/login/'
 

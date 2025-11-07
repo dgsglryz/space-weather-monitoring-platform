@@ -11,7 +11,7 @@
 </div>
 {% endif %}
 
-<form method="post" class="card" style="margin: 16px 0;padding:16px">
+<form method="post" class="card" style="margin: 16px 0; padding: 16px">
   {% csrf_token %}
   <div
     style="
@@ -21,8 +21,8 @@
       margin-bottom: 16px;
     "
   >
-    <label style="display:flex;flex-direction:column;gap:6px">
-      <div style="font-size:13px;font-weight:500">City name *</div>
+    <label style="display: flex; flex-direction: column; gap: 6px">
+      <div style="font-size: 13px; font-weight: 500">City name *</div>
       <input
         name="name"
         placeholder="e.g. Istanbul"
@@ -32,12 +32,12 @@
           padding: 8px 12px;
           border-radius: 8px;
           border: 1px solid #ddd;
-          box-sizing:border-box;
+          box-sizing: border-box;
         "
       />
     </label>
-    <label style="display:flex;flex-direction:column;gap:6px">
-      <div style="font-size:13px;font-weight:500">Latitude (optional)</div>
+    <label style="display: flex; flex-direction: column; gap: 6px">
+      <div style="font-size: 13px; font-weight: 500">Latitude (optional)</div>
       <input
         name="latitude"
         placeholder="41.0082"
@@ -48,12 +48,12 @@
           padding: 8px 12px;
           border-radius: 8px;
           border: 1px solid #ddd;
-          box-sizing:border-box;
+          box-sizing: border-box;
         "
       />
     </label>
-    <label style="display:flex;flex-direction:column;gap:6px">
-      <div style="font-size:13px;font-weight:500">Longitude (optional)</div>
+    <label style="display: flex; flex-direction: column; gap: 6px">
+      <div style="font-size: 13px; font-weight: 500">Longitude (optional)</div>
       <input
         name="longitude"
         placeholder="28.9784"
@@ -64,46 +64,82 @@
           padding: 8px 12px;
           border-radius: 8px;
           border: 1px solid #ddd;
-          box-sizing:border-box;
+          box-sizing: border-box;
         "
       />
     </label>
   </div>
-  <p style="color: #666; font-size: 12px; margin-top: 8px;margin-bottom:12px;line-height:1.5">
+  <p
+    style="
+      color: #666;
+      font-size: 12px;
+      margin-top: 8px;
+      margin-bottom: 12px;
+      line-height: 1.5;
+    "
+  >
     If coordinates are not provided, city name will be geocoded automatically.
   </p>
   <div style="margin-top: 16px">
-    <button class="btn" type="submit" style="padding:10px 20px">Add Location</button>
+    <button class="btn" type="submit" style="padding: 10px 20px">
+      Add Location
+    </button>
   </div>
 </form>
 
-<div class="card" style="padding:16px;margin:16px 0">
-  <table style="width: 100%; font-size: 14px;border-collapse:collapse">
+<div class="card" style="padding: 16px; margin: 16px 0">
+  <table style="width: 100%; font-size: 14px; border-collapse: collapse">
     <thead>
-      <tr style="border-bottom:2px solid #eee">
-        <th style="text-align: left;padding:12px 8px;font-weight:600">Name</th>
-        <th style="text-align: left;padding:12px 8px;font-weight:600">Latitude</th>
-        <th style="text-align: left;padding:12px 8px;font-weight:600">Longitude</th>
-        <th style="text-align: left;padding:12px 8px;font-weight:600">Actions</th>
+      <tr style="border-bottom: 2px solid #eee">
+        <th style="text-align: left; padding: 12px 8px; font-weight: 600">
+          Name
+        </th>
+        <th style="text-align: left; padding: 12px 8px; font-weight: 600">
+          Latitude
+        </th>
+        <th style="text-align: left; padding: 12px 8px; font-weight: 600">
+          Longitude
+        </th>
+        <th style="text-align: left; padding: 12px 8px; font-weight: 600">
+          Actions
+        </th>
       </tr>
     </thead>
     <tbody>
       {% for loc in locations %}
-      <tr style="border-bottom:1px solid #f0f0f0">
-        <td style="padding:12px 8px;line-height:1.6">{{ loc.name }}</td>
-        <td style="padding:12px 8px;line-height:1.6">{{ loc.latitude|default:"—" }}</td>
-        <td style="padding:12px 8px;line-height:1.6">{{ loc.longitude|default:"—" }}</td>
-        <td style="padding:12px 8px">
+      <tr style="border-bottom: 1px solid #f0f0f0">
+        <td style="padding: 12px 8px; line-height: 1.6">{{ loc.name }}</td>
+        <td style="padding: 12px 8px; line-height: 1.6">
+          {{ loc.latitude|default:"—" }}
+        </td>
+        <td style="padding: 12px 8px; line-height: 1.6">
+          {{ loc.longitude|default:"—" }}
+        </td>
+        <td style="padding: 12px 8px">
           <div style="display: flex; gap: 8px; flex-wrap: wrap">
-            <a class="btn" href="/dashboard/" style="padding:6px 12px;font-size:13px;text-decoration:none;display:inline-block">View Dashboard</a>
+            <a
+              class="btn"
+              href="/dashboard/"
+              style="
+                padding: 6px 12px;
+                font-size: 13px;
+                text-decoration: none;
+                display: inline-block;
+              "
+              >View Dashboard</a
+            >
             <form
               method="post"
               action="{% url 'delete-location' loc.id %}"
-              style="display: inline;margin:0"
+              style="display: inline; margin: 0"
               onsubmit="return confirm('Delete {{ loc.name }}?')"
             >
               {% csrf_token %}
-              <button class="btn" type="submit" style="color: #c00;padding:6px 12px;font-size:13px">
+              <button
+                class="btn"
+                type="submit"
+                style="color: #c00; padding: 6px 12px; font-size: 13px"
+              >
                 Delete
               </button>
             </form>
@@ -112,7 +148,9 @@
       </tr>
       {% empty %}
       <tr>
-        <td colspan="4" style="padding:24px;text-align:center;color:#666">No locations yet.</td>
+        <td colspan="4" style="padding: 24px; text-align: center; color: #666">
+          No locations yet.
+        </td>
       </tr>
       {% endfor %}
     </tbody>

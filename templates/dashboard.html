@@ -144,6 +144,8 @@
   }
 }
 
+window.draw = draw;
+
 document.getElementById('refresh').addEventListener('click', draw);
 document.getElementById('loc').addEventListener('change', draw);
 document.addEventListener('DOMContentLoaded', draw);
@@ -152,5 +154,38 @@ setInterval(() => {
   if (status.textContent === 'loading…') return;
   draw();
 }, 60000);
+</script>
+<script>
+  (function(){
+    try {
+      const url = (location.protocol === "https:" ? "wss://" : "ws://") + location.host + "/ws/updates/";
+      const ws = new WebSocket(url);
+      
+      ws.onopen = function() {
+        console.log('WebSocket connected');
+      };
+      
+      ws.onmessage = function(event) {
+        try {
+          const data = JSON.parse(event.data);
+          if (data.location && window.draw) {
+            window.draw();
+          }
+        } catch (e) {
+          console.error('Error parsing WebSocket message:', e);
+        }
+      };
+      
+      ws.onerror = function(error) {
+        console.error('WebSocket error:', error);
+      };
+      
+      ws.onclose = function() {
+        console.log('WebSocket disconnected');
+      };
+    } catch(e) {
+      console.error('Error initializing WebSocket:', e);
+    }
+  })();
 </script>
 {% endblock %}
