@@ -17,6 +17,53 @@ from .permissions import IsAdminOrOwner
 from .geocode import geocode_city
 from .owm_client import fetch_current_by_coords
 from django.core.cache import cache
+import logging
+
+logger = logging.getLogger(__name__)
+
+
+def build_telemetry_series(telemetry_queryset):
+    """Build series data from telemetry queryset for chart rendering.
+    
+    Converts Telemetry objects to dict format with timestamp, temperature,
+    wind speed, and humidity. Used consistently across multiple views.
+    """
+    series = []
+    for telemetry in telemetry_queryset:
+        series.append({
+            'timestamp': telemetry.timestamp.isoformat(),
+            'temperature_c': telemetry.temperature_c,
+            'wind_speed_ms': telemetry.wind_speed_ms,
+            'humidity': telemetry.humidity
+        })
+    return series
+
+
+def create_telemetry_from_weather_data(location, weather_data):
+    """Create Telemetry record from weather API response.
+    
+    Args:
+        location: Location instance
+        weather_data: Dict with temperature_c, wind_speed_ms, humidity
+        
+    Returns:
+        Telemetry instance or None if creation fails
+    """
+    if not weather_data:
+        return None
+    
+    timestamp = timezone.now().replace(second=0, microsecond=0)
+    try:
+        return Telemetry.objects.create(
+            location=location,
+            timestamp=timestamp,
+            temperature_c=weather_data.get('temperature_c'),
+            wind_speed_ms=weather_data.get('wind_speed_ms'),
+            humidity=weather_data.get('humidity')
+        )
+    except Exception as e:
+        logger.warning(f"Failed to create telemetry for location {location.id}: {e}")
+        return None
 
 
 class LocationListCreate(ListCreateAPIView):
@@ -31,17 +78,9 @@ class LocationListCreate(ListCreateAPIView):
         if location.latitude and location.longitude:
             try:
                 data = fetch_current_by_coords(location.latitude, location.longitude)
-                if data:
-                    timestamp = timezone.now().replace(second=0, microsecond=0)
-                    Telemetry.objects.create(
-                        location=location,
-                        timestamp=timestamp,
-                        temperature_c=data.get('temperature_c'),
-                        wind_speed_ms=data.get('wind_speed_ms'),
-                        humidity=data.get('humidity')
-                    )
-            except Exception:
-                pass
+                create_telemetry_from_weather_data(location, data)
+            except Exception as e:
+                logger.warning(f"Failed to fetch weather for location {location.id}: {e}")
 
 
 class WeatherByLocation(APIView):
@@ -73,14 +112,7 @@ class WeatherByLocation(APIView):
                 'humidity': latest.humidity
             }
 
-        series = []
-        for x in qs:
-            series.append({
-                'timestamp': x.timestamp.isoformat(),
-                'temperature_c': x.temperature_c,
-                'wind_speed_ms': x.wind_speed_ms,
-                'humidity': x.humidity
-            })
+        series = build_telemetry_series(qs)
 
         response_data = {
             'location': LocationSerializer(location).data,
@@ -149,7 +181,8 @@ class LocationPageView(APIView):
         except (ValueError, TypeError):
             messages.error(request, "Invalid coordinates. Please check your input.")
             return redirect('locations-page')
-        except Exception:
+        except Exception as e:
+            logger.warning(f"Geocoding failed for city '{name}': {e}")
             messages.error(request, "Geocoding failed. Please provide coordinates.")
             return redirect('locations-page')
 
@@ -161,17 +194,9 @@ class LocationPageView(APIView):
         )
         try:
             data = fetch_current_by_coords(latitude, longitude)
-            if data:
-                timestamp = timezone.now().replace(second=0, microsecond=0)
-                Telemetry.objects.create(
-                    location=location,
-                    timestamp=timestamp,
-                    temperature_c=data.get('temperature_c'),
-                    wind_speed_ms=data.get('wind_speed_ms'),
-                    humidity=data.get('humidity')
-                )
-        except Exception:
-            pass
+            create_telemetry_from_weather_data(location, data)
+        except Exception as e:
+            logger.warning(f"Failed to fetch weather for location {location.id}: {e}")
         
         messages.success(request, f"Location '{name}' added.")
         return redirect('locations-page')
@@ -276,13 +301,7 @@ class DashboardView(LoginRequiredMixin, View):
         if first_id:
             since = timezone.now() - timedelta(hours=24)
             telemetry = Telemetry.objects.filter(location_id=first_id, timestamp__gte=since).order_by('timestamp')
-            for x in telemetry:
-                series.append({
-                    'timestamp': x.timestamp.isoformat(),
-                    'temperature_c': x.temperature_c,
-                    'wind_speed_ms': x.wind_speed_ms,
-                    'humidity': x.humidity
-                })
+            series = build_telemetry_series(telemetry)
 
         return render(request, self.template_name, {
             'locations': locs,
