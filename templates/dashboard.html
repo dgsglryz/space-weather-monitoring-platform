@@ -1,0 +1,191 @@
+{% extends "base.html" %}
+{% block title %}Weather Dashboard{% endblock %}
+
+{% block head %}
+<script src="https://cdn.plot.ly/plotly-2.32.0.min.js"></script>
+{% endblock %}
+
+{% block body %}
+<h1>Weather Dashboard</h1>
+
+{% if cards %}
+<div class="grid grid-3" style="display:grid;gap:16px;grid-template-columns:repeat(auto-fill,minmax(240px,1fr));margin:16px 0">
+  {% for item in cards %}
+  <div class="card" style="border:1px solid #eee;border-radius:12px;padding:16px;margin-bottom:0">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
+      <strong style="font-size:16px">{{ item.loc.name }}</strong>
+      {% if item.status == "alert" %}
+        <span class="badge" style="background:#ffe6e6;color:#8b1a1a;padding:4px 10px;border-radius:12px;font-size:11px;font-weight:600">ALERT</span>
+      {% elif item.status == "warning" %}
+        <span class="badge" style="background:#fff7e6;color:#8b5a00;padding:4px 10px;border-radius:12px;font-size:11px;font-weight:600">WARNING</span>
+      {% elif item.status == "normal" %}
+        <span class="badge" style="background:#e6ffed;color:#116b3a;padding:4px 10px;border-radius:12px;font-size:11px;font-weight:600">OK</span>
+      {% else %}
+        <span class="badge" style="background:#f0f0f0;color:#666;padding:4px 10px;border-radius:12px;font-size:11px">UNKNOWN</span>
+      {% endif %}
+    </div>
+    {% if item.latest %}
+      <div style="margin-top:12px;line-height:1.8">
+        <div style="margin-bottom:4px">T: {{ item.latest.temperature_c|floatformat:1 }} °C</div>
+        <div style="margin-bottom:4px">W: {{ item.latest.wind_speed_ms|floatformat:1 }} m/s</div>
+        <div style="margin-bottom:4px">H: {{ item.latest.humidity|floatformat:0 }} %</div>
+        <div style="color:#666;font-size:11px;margin-top:8px;padding-top:8px;border-top:1px solid #f0f0f0">Updated: {{ item.latest.timestamp|timesince }} ago</div>
+      </div>
+    {% else %}
+      <div style="color:#666;font-size:12px;margin-top:12px">No data yet</div>
+    {% endif %}
+  </div>
+  {% endfor %}
+</div>
+{% endif %}
+
+<div class="card" style="margin:16px 0;padding:16px">
+  <div class="row" style="gap:12px;flex-wrap:wrap;align-items:center">
+    <label style="display:flex;flex-direction:column;gap:4px">
+      <span style="font-size:13px;font-weight:500">Location</span>
+      <select id="loc" style="padding:8px 12px;min-width:200px">
+        {%for l in locations%}
+        <option value="{{l.id}}"{% if l.id == first_location_id %} selected{% endif %}>
+            {{l.name}}
+        </option>
+        {% endfor %}
+      </select>
+    </label>
+
+    <label style="display:flex;flex-direction:column;gap:4px">
+      <span style="font-size:13px;font-weight:500">Hours</span>
+      <input id="hours" type="number" value="24" min="1" max="168" style="width:80px;padding:8px 12px"/>
+    </label>
+
+    <div style="display:flex;flex-direction:column;gap:4px">
+      <span style="font-size:13px;font-weight:500;opacity:0">&nbsp;</span>
+      <button id="refresh" class="btn" style="padding:8px 16px">Refresh</button>
+    </div>
+
+    <div style="display:flex;align-items:center;gap:8px;margin-left:auto">
+      <span id="status" class="muted" style="font-size:12px"></span>
+      <span id="alertBadge" class="badge ok" style="display:none;"></span>
+    </div>
+  </div>
+</div>
+
+<div class="card" style="margin:16px 0;padding:16px">
+    <div id="chart" style="height:400px;"></div>
+</div>
+
+<div class="card" style="margin:16px 0;padding:12px">
+    <div id="latest" class="muted" style="font-size:12px;line-height:1.6">latest: -</div>
+</div>
+
+<script>
+    async function fetchWeather(locId, hours){
+        const res = await fetch(`/api/weather/${locId}/?hours=${hours}`, {credentials: 'include'});
+        if(!res.ok) throw new Error('API Error' + res.status);
+        return await res.json();
+    }
+
+    function toTrace(series,key,name){
+        return {x:series.map(p=>p.timestamp), y:series.map(p=>p[key]), mode: 'lines', name};
+    }
+
+    function showAlertBadge(latest){
+        const el = document.getElementById('alertBadge');
+        if(!latest){el.style.display='none';return;}
+        
+        const alerting = (latest.temperature_c !==null && latest.temperature_c < 0)||
+        (latest.wind_speed_ms !==null && latest.wind_speed_ms > 10)||
+        (latest.humidity !==null && latest.humidity > 90);
+
+        if (alerting) {
+            el.textContent = 'ALERT';
+            el.className = 'badge warn';
+            el.style.display = 'inline-block';
+        } else {
+            el.textContent = 'OK';
+            el.className = 'badge ok';
+            el.style.display = 'inline-block';
+        }
+    }
+
+    async function draw() {
+  const locId = document.getElementById('loc').value;
+  const hours = document.getElementById('hours').value || 24;
+  const status = document.getElementById('status');
+  status.textContent = 'loading…';
+
+  try {
+    const data = await fetchWeather(locId, hours);
+    const s = data.series || [];
+    const traces = [
+      toTrace(s, 'temperature_c', 'Temp (°C)'),
+      Object.assign(toTrace(s, 'wind_speed_ms', 'Wind (m/s)'), { yaxis: 'y2' }),
+      toTrace(s, 'humidity', 'Humidity (%)'),
+    ];
+    Plotly.newPlot('chart', traces, {
+      title: `${data.location.name} — last ${hours}h`,
+      margin:{l:40,r:20,t:40,b:40},
+      xaxis:{ type:'date' },
+      yaxis:{ title:'Temperature (°C)' },
+      yaxis2:{ title:'Wind (m/s)', overlaying:'y', side:'right' }
+    }, {responsive:true});
+
+    const latestDiv = document.getElementById('latest');
+    if (data.latest) {
+      latestDiv.textContent = `latest @ ${data.latest.timestamp} — T=${data.latest.temperature_c}°C, W=${data.latest.wind_speed_ms} m/s, H=${data.latest.humidity}%`;
+    } else {
+      latestDiv.textContent = 'latest: —';
+    }
+
+    showAlertBadge(data.latest);
+    status.textContent = 'ok';
+  } catch (e) {
+    console.error(e);
+    status.textContent = 'error';
+  }
+}
+
+window.draw = draw;
+
+document.getElementById('refresh').addEventListener('click', draw);
+document.getElementById('loc').addEventListener('change', draw);
+document.addEventListener('DOMContentLoaded', draw);
+setInterval(() => {
+  const status = document.getElementById('status');
+  if (status.textContent === 'loading…') return;
+  draw();
+}, 60000);
+</script>
+<script>
+  (function(){
+    try {
+      const url = (location.protocol === "https:" ? "wss://" : "ws://") + location.host + "/ws/updates/";
+      const ws = new WebSocket(url);
+      
+      ws.onopen = function() {
+        console.log('WebSocket connected');
+      };
+      
+      ws.onmessage = function(event) {
+        try {
+          const data = JSON.parse(event.data);
+          if (data.location && window.draw) {
+            window.draw();
+          }
+        } catch (e) {
+          console.error('Error parsing WebSocket message:', e);
+        }
+      };
+      
+      ws.onerror = function(error) {
+        console.error('WebSocket error:', error);
+      };
+      
+      ws.onclose = function() {
+        console.log('WebSocket disconnected');
+      };
+    } catch(e) {
+      console.error('Error initializing WebSocket:', e);
+    }
+  })();
+</script>
+{% endblock %}
