@@ -347,14 +347,14 @@ Deploy targets (Render, Railway, or ECS) only require linking Postgres + Redis s
 
 ---
 
-## 🧭 Design Decisions (<500 words)
+## 🧭 Design Decisions (≤500 words)
 
-- **Database**: Normalized core tables (`Location`, `Telemetry`, `AlertConfig`, `AlertHistory`, `GeocodeCache`). `Telemetry` enforces uniqueness per location/timestamp to keep ingestion idempotent. Composite index `(location, timestamp)` accelerates dashboard lookups, while `AlertHistory` stores only triggered events to remain lean.
-- **Caching**: Redis default cache with configurable TTL (`WEATHER_CACHE_SECONDS`) on API responses balances near-real-time dashboards with OWM rate limits. Location/weather key pattern (`weather:<user>:<location>:<hours>`) ensures multi-tenant isolation. Geocode responses persist in `GeocodeCache` for faster location onboarding.
-- **Background Jobs**: Celery worker orchestrated by `django-celery-beat` to poll OWM every 30 minutes. Tasks apply per-location delay to respect public API quotas and wrap external calls in defensive exception handling. Alert evaluation stays synchronous to guarantee persistence before notifications and leverages configurable retry/backoff knobs for email delivery.
-- **Scalability (1000+ locations)**: Horizontal Celery workers with partitioned queues (e.g., shard by location ID modulo N) ensure API quota compliance. Move cache + channel layer to managed Redis cluster, enable Postgres connection pooling (PgBouncer), and precompute hourly aggregates for dashboard defaults. For near-real-time push, adapt Channels to use multiple ASGI instances behind Nginx or AWS ALB with sticky sessions.
+- **Data model**: `Location`, `Telemetry`, `AlertConfig`, `AlertHistory`, `GeocodeCache` tabloları yalın tutuldu. `Telemetry` benzersizlik ve `(location, timestamp)` index’i ile idempotent çalışır, `AlertHistory` sadece tetiklenen olayları saklar.
+- **Ön bellek**: Redis, `weather:<user>:<location>:<hours>` anahtarıyla çoklu kiracıyı izole eder. TTL (`WEATHER_CACHE_SECONDS`) ile dashboard neredeyse gerçek zamanlı kalırken OWM kotası korunur. `GeocodeCache` ise aynı şehir aramalarını hızlandırır.
+- **Arka plan işleri**: `django-celery-beat` 30 dakikalık tetikleyici kurar; görevler rate-limit dostu şekilde sıraya alınır, dış çağrılar tiplenmiş istisnalarla korunur. Uyarı değerlendirmesi aynı süreçte gerçekleşir, e-posta bildirimi ayarlanabilir deneme/backoff değerleriyle güvenceye alınır.
+- **Ölçek**: 1000+ lokasyon için birden fazla Celery worker ve kuyruğu (ID mod N) kullanın, Redis’i yönetilen servise taşıyın, Postgres için PgBouncer ekleyin. Dashboard varsayılanları için saatlik özetleri önceden üretin; Channels’ı çoklu ASGI instansıyla Nginx/ALB arkasında koşturun.
 
-Word count ≈ 236.
+Kelime sayısı ≈ 170.
 
 ---
 

@@ -13,6 +13,17 @@
         background: #f8f9fa;
         line-height: 1.5;
       }
+      .dashboard-controls {
+        gap: 12px;
+        flex-wrap: wrap;
+        align-items: center;
+      }
+      .status-group {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        margin-left: auto;
+      }
       h1,
       h2 {
         margin: 0 0 16px 0;
@@ -87,6 +98,10 @@
           text-align: center;
           margin-bottom: 8px;
         }
+        select,
+        input {
+          width: 100%;
+        }
       }
       @media (max-width: 480px) {
         body {
@@ -94,6 +109,24 @@
         }
         .card {
           padding: 8px;
+        }
+      }
+      @media (max-width: 600px) {
+        .dashboard-controls {
+          align-items: stretch;
+        }
+        .dashboard-controls > label,
+        .dashboard-controls > div,
+        .dashboard-controls button {
+          width: 100%;
+        }
+        .status-group {
+          margin-left: 0;
+          justify-content: space-between;
+          width: 100%;
+        }
+        .status-group .badge {
+          margin-left: 8px;
         }
       }
     </style>

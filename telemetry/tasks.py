@@ -1,6 +1,7 @@
 from celery import shared_task
 from django.conf import settings
 from django.utils import timezone
+from django.utils.dateparse import parse_datetime
 from datetime import timedelta
 from .models import Location, Telemetry, AlertConfig, AlertHistory
 from .owm_client import fetch_current_by_coords
@@ -20,42 +21,66 @@ API_RATE_LIMIT_DELAY_SECONDS = 1.1
 
 @shared_task
 def fetch_and_store_weather():
-    base_time = timezone.now()
-    base_time = base_time.replace(second=0, microsecond=0)
-    
-    locations = Location.objects.filter(latitude__isnull=False, longitude__isnull=False)
-    
+    """Enqueue weather ingestion per location without blocking the worker."""
+    base_time = timezone.now().replace(second=0, microsecond=0)
+    locations = (Location.objects
+                 .filter(latitude__isnull=False, longitude__isnull=False)
+                 .only("id", "latitude", "longitude"))
+
     for idx, loc in enumerate(locations):
-        # Small pause between requests
-        if idx > 0:
-            time.sleep(API_RATE_LIMIT_DELAY_SECONDS)
-        
-        try:
-            data = fetch_current_by_coords(loc.latitude, loc.longitude)
-            
-            if data is None:
-                continue
-            
-            timestamp = base_time + timedelta(seconds=idx)
-            
-            measurement, created = Telemetry.objects.get_or_create(
-                location=loc,
-                timestamp=timestamp,
-                defaults={
-                    'temperature_c': data.get('temperature_c'),
-                    'wind_speed_ms': data.get('wind_speed_ms'),
-                    'humidity': data.get('humidity')
-                }
-            )
-            
-            if created:
-                evaluate_alerts(loc, measurement)
-        except (requests.RequestException, RuntimeError, ValueError, TypeError) as e:
-            logger.warning(f"Failed to fetch weather data for location {loc.id} ({loc.name}): {e}")
-            continue
-        except (DatabaseError, IntegrityError) as e:
-            logger.error(f"Database error while storing weather for location {loc.id} ({loc.name}): {e}")
-            continue
+        countdown = idx * API_RATE_LIMIT_DELAY_SECONDS if API_RATE_LIMIT_DELAY_SECONDS else 0
+        ingest_location_weather.apply_async(
+            args=(loc.id, base_time.isoformat(), idx),
+            countdown=countdown,
+        )
+
+
+@shared_task
+def ingest_location_weather(location_id: int, base_time_iso: str, offset_seconds: int) -> None:
+    """Fetch weather for a single location, persist measurement, and trigger alerts."""
+    try:
+        location = Location.objects.get(id=location_id)
+    except Location.DoesNotExist:
+        logger.warning("Location %s no longer exists; skipping weather ingest.", location_id)
+        return
+
+    try:
+        data = fetch_current_by_coords(location.latitude, location.longitude)
+        if data is None:
+            return
+
+        base_time = parse_datetime(base_time_iso)
+        if base_time is None:
+            base_time = timezone.now().replace(second=0, microsecond=0)
+
+        timestamp = base_time + timedelta(seconds=offset_seconds)
+
+        measurement, created = Telemetry.objects.get_or_create(
+            location=location,
+            timestamp=timestamp,
+            defaults={
+                'temperature_c': data.get('temperature_c'),
+                'wind_speed_ms': data.get('wind_speed_ms'),
+                'humidity': data.get('humidity')
+            }
+        )
+
+        if created:
+            evaluate_alerts(location, measurement)
+    except (requests.RequestException, RuntimeError, ValueError, TypeError) as exc:
+        logger.warning(
+            "Failed to fetch weather data for location %s (%s): %s",
+            location.id,
+            location.name,
+            exc,
+        )
+    except (DatabaseError, IntegrityError) as exc:
+        logger.error(
+            "Database error while storing weather for location %s (%s): %s",
+            location.id,
+            location.name,
+            exc,
+        )
 
 
 def evaluate_alerts(location, measurement):

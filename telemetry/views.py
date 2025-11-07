@@ -5,6 +5,7 @@ from rest_framework.response import Response
 from django.shortcuts import get_object_or_404, render, redirect
 from django.utils import timezone
 from django.db.models import Max, Q
+from django.db import DatabaseError, IntegrityError
 from datetime import timedelta
 from django.contrib.auth.decorators import login_required
 from django.utils.decorators import method_decorator
@@ -20,11 +21,13 @@ from .owm_client import fetch_current_by_coords
 from django.core.cache import cache
 import json
 import logging
+import requests
 
 logger = logging.getLogger(__name__)
 
 # Constants for default values and thresholds
 DEFAULT_WEATHER_HOURS = 24
+MAX_WEATHER_HOURS = getattr(settings, "WEATHER_HISTORY_MAX_HOURS", 168)
 CACHE_TIMEOUT_SECONDS = getattr(settings, "WEATHER_CACHE_SECONDS", 30)
 REFRESH_COOLDOWN_SECONDS = getattr(settings, "DASHBOARD_REFRESH_COOLDOWN_SECONDS", 300)
 REFRESH_MAX_AGE_SECONDS = getattr(settings, "DASHBOARD_REFRESH_MAX_AGE_SECONDS", 2700)
@@ -59,8 +62,12 @@ def create_telemetry_from_weather_data(location, weather_data):
             wind_speed_ms=weather_data.get('wind_speed_ms'),
             humidity=weather_data.get('humidity')
         )
-    except Exception as e:
-        logger.warning(f"Failed to create telemetry for location {location.id}: {e}")
+    except (DatabaseError, IntegrityError, ValueError, TypeError) as exc:
+        logger.warning(
+            "Failed to create telemetry for location %s: %s",
+            location.id,
+            exc,
+        )
         return None
 
 
@@ -115,8 +122,12 @@ class LocationListCreate(ListCreateAPIView):
             try:
                 data = fetch_current_by_coords(location.latitude, location.longitude)
                 create_telemetry_from_weather_data(location, data)
-            except Exception as e:
-                logger.warning(f"Failed to fetch weather for location {location.id}: {e}")
+            except (requests.RequestException, RuntimeError, ValueError, TypeError, DatabaseError, IntegrityError) as exc:
+                logger.warning(
+                    "Failed to seed weather for location %s: %s",
+                    location.id,
+                    exc,
+                )
 
 
 class WeatherByLocation(APIView):
@@ -129,6 +140,7 @@ class WeatherByLocation(APIView):
             hours = int(request.query_params.get('hours', DEFAULT_WEATHER_HOURS))
         except ValueError:
             hours = DEFAULT_WEATHER_HOURS
+        hours = min(max(1, hours), MAX_WEATHER_HOURS)
 
         cache_key = f'weather:{request.user.id}:{location_id}:{hours}'
         cached = cache.get(cache_key)
@@ -218,9 +230,9 @@ class LocationPageView(APIView):
         except (ValueError, TypeError):
             messages.error(request, "Invalid coordinates. Please check your input.")
             return redirect('locations-page')
-        except Exception as e:
-            logger.warning(f"Geocoding failed for city '{name}': {e}")
-            messages.error(request, "Geocoding failed. Please provide coordinates.")
+        except (RuntimeError, requests.RequestException, DatabaseError, IntegrityError) as exc:
+            logger.warning(f"Geocoding failed for city '{name}': {exc}")
+            messages.error(request, "Geocoding service hatası. Lütfen koordinat girin veya tekrar deneyin.")
             return redirect('locations-page')
 
         location = Location.objects.create(
@@ -232,8 +244,8 @@ class LocationPageView(APIView):
         try:
             data = fetch_current_by_coords(latitude, longitude)
             create_telemetry_from_weather_data(location, data)
-        except Exception as e:
-            logger.warning(f"Failed to fetch weather for location {location.id}: {e}")
+        except (requests.RequestException, RuntimeError, ValueError, TypeError, DatabaseError, IntegrityError) as exc:
+            logger.warning(f"Failed to fetch weather for location {location.id}: {exc}")
         
         messages.success(request, f"Location '{name}' added.")
         return redirect('locations-page')

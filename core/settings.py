@@ -1,6 +1,7 @@
 from pathlib import Path
 from dotenv import load_dotenv
 from celery.schedules import crontab
+from django.core.exceptions import ImproperlyConfigured
 import os
 
 try:
@@ -20,25 +21,22 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 # - DEBUG: Must be "False" in production
 # - ALLOWED_HOSTS: Must list allowed domain names in production
 SECRET_KEY = os.getenv("SECRET_KEY", "dev_only")
-DEBUG = os.getenv("DEBUG", "True") == "True"
+DEBUG = os.getenv("DEBUG", "True").lower() in {"1", "true", "yes", "on"}
 
-ALLOWED_HOSTS = os.getenv("ALLOWED_HOSTS", "").split(",") if os.getenv("ALLOWED_HOSTS") else []
+raw_allowed_hosts = os.getenv("ALLOWED_HOSTS", "")
+ALLOWED_HOSTS = [host.strip() for host in raw_allowed_hosts.split(",") if host.strip()]
 
-# Warn if insecure defaults are detected in production-like environments
-if SECRET_KEY == "dev_only" and os.getenv("DJANGO_ENV") not in (None, "development", "dev"):
-    import warnings
-    warnings.warn(
-        "SECRET_KEY is using insecure default 'dev_only'. "
-        "Set SECRET_KEY environment variable in production!",
-        UserWarning
-    )
+ENVIRONMENT = (os.getenv("DJANGO_ENV") or "development").lower()
+IS_PRODUCTION = ENVIRONMENT not in {"development", "dev", "local"}
 
-if DEBUG and os.getenv("DJANGO_ENV") not in (None, "development", "dev"):
-    import warnings
-    warnings.warn(
-        "DEBUG is True. Set DEBUG=False environment variable in production!",
-        UserWarning
-    )
+if SECRET_KEY == "dev_only" and (IS_PRODUCTION or not DEBUG):
+    raise ImproperlyConfigured("SECRET_KEY environment variable must be set for non-development environments.")
+
+if DEBUG and IS_PRODUCTION:
+    raise ImproperlyConfigured("DEBUG must be disabled in non-development environments. Set DEBUG=False.")
+
+if IS_PRODUCTION and not ALLOWED_HOSTS:
+    raise ImproperlyConfigured("ALLOWED_HOSTS must be provided for non-development environments.")
 
 INSTALLED_APPS = [
     'django.contrib.admin',
