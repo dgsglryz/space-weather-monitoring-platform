@@ -2,414 +2,136 @@
 
 # Space Weather Monitoring Platform
 
-**Mission-ready weather intelligence** for satellite ground stations with automated alerting, real-time dashboards, and resilient background ingestion.
+Mission-ready weather intelligence for satellite ground stations with automated alerting, real-time dashboards, and resilient background ingestion.
 
 ---
 
-## 🎯 Project Overview
+## Project Overview
 
-Multi-tenant Django platform that captures weather telemetry, evaluates alert thresholds, and notifies operators guarding space infrastructure. The stack balances pragmatic delivery (10–12h scope) with production hardening: rate-limited ingestion, Redis-backed caching, WebSocket push updates, and Dockerized deployment.
-
-> **Reviewer note:** All current work and hand-off materials live on the `delivery` branch. Please base your review on that branch.
-
-### Key Capabilities
-
-- 🌐 **Location Portfolio**: User-scoped CRUD for geocoded ground stations
-- 📡 **Automated Ingestion**: Celery beat pulls OpenWeatherMap every 30 minutes
-- 🚨 **Alert Intelligence**: Threshold engine with email + dashboard surfacing
-- 📊 **Interactive Dashboard**: Plotly charts with 24h trend + live status cards
-- 🔐 **Access Control**: JWT auth (REST) + session auth (SSR) + throttling
-- ⚙️ **Operational Ready**: Docker Compose, `.env.example`, test suite, swagger
+Multi-tenant Django platform that captures weather telemetry, evaluates alert thresholds, and notifies operators guarding space infrastructure. Scope follows the take-home brief: functional SSR dashboard, authenticated REST API, Celery-based ingestion, deployable in Docker, and documented design rationale under 500 words.
 
 ---
 
-## 🏗️ System Architecture
+## Architecture
 
-### High-Level Diagram
+- Django REST + templates serve both API and SSR pages.
+- Celery beat/worker pipeline pulls OpenWeatherMap every 30 minutes and evaluates alerts.
+- Redis provides cache, channel layer, and Celery broker; PostgreSQL persists telemetry.
+- WebSocket updates keep dashboard status cards and Plotly chart current.
 
-```mermaid
-graph TB
-    subgraph "External Weather"
-        OWM[OpenWeatherMap API]
-    end
+![Architecture diagram](docs/architecture.png)
 
-    subgraph "Schedulers"
-        BEAT[Celery Beat<br/>*/30 min cadence]
-    end
-
-    subgraph "Workers"
-        WORKER[Celery Worker<br/>telemetry.tasks.fetch_and_store_weather]
-    end
-
-    subgraph "Core Platform"
-        DJANGO[Django REST + Templates]
-        CHANNELS[Django Channels<br/>WebSocket Hub]
-        CACHE[(Redis Cache / Channel Layer)]
-        DB[(PostgreSQL 15)]
-    end
-
-    subgraph "Clients"
-        SSR[Server-rendered UI<br/>Plotly + vanilla JS]
-        API[JWT REST Consumers]
-        WS[WebSocket Subscribers]
-    end
-
-    BEAT -->|schedule| WORKER
-    WORKER -->|fetch| OWM
-    WORKER -->|persist telemetry| DB
-    WORKER -->|evaluate alerts| DJANGO
-    WORKER -.->|publish updates| CHANNELS
-    WORKER -->|warm cache| CACHE
-    DJANGO -->|REST| API
-    DJANGO -->|SSR pages| SSR
-    DJANGO -->|WS handshake| CHANNELS
-    CHANNELS -->|push| WS
-    SSR -.->|read| CACHE
-    SSR -->|fallback| DB
-```
-
-### Component Overview
-
-| Component                    | Technology                        | Purpose                              | Port                  |
-| ---------------------------- | --------------------------------- | ------------------------------------ | --------------------- |
-| **Web App**                  | Django 4.2 + Templates            | Dashboard, alert management          | 8000                  |
-| **REST API**                 | Django REST Framework + SimpleJWT | Secure JSON APIs                     | 8000                  |
-| **Background Jobs**          | Celery 5 + django-celery-beat     | Weather polling, alert evaluation    | 8000 (AMQP via Redis) |
-| **Channel Layer**            | Channels + channels-redis         | WebSocket fan-out                    | 6379                  |
-| **Cache**                    | Redis 7                           | 30s weather cache + rate safety      | 6379                  |
-| **Database**                 | PostgreSQL 15                     | Persistent telemetry + alerts        | 5432                  |
-| **Reverse Proxy (optional)** | Nginx                             | TLS / static cache (Compose profile) | 8080                  |
-
-### Tech Stack
-
-**Backend**
-
-- Django 4.2, Django REST Framework, SimpleJWT
-- Celery 5.3 with django-celery-beat schedule
-- Channels 4 + Redis channel layer
-- PostgreSQL 15 with timezone-aware indices
-
-**Frontend**
-
-- Django templates with progressive enhancement
-- Plotly.js for 24h temperature trend
-- TailwindCSS (via CDN) for responsive layout
-
-**Ops**
-
-- Docker & Docker Compose
-- `.env.example` provisioning
-- Spectacular-generated OpenAPI at `/api/schema/swagger-ui/`
+> Need a visual? The original Mermaid source lives at `docs/architecture.mmd`; render or screenshot it as needed without affecting the 500-word limit.
 
 ---
 
-## 🚀 Quick Start
+## Getting Started
 
-### 1. Local Development (Python 3.11)
+### Local (Python 3.11)
 
 ```bash
 cp env.example .env
-# Update .env with your SMTP credentials (see Gmail note below)
 python -m venv .venv && source .venv/bin/activate
 pip install -r requirements.txt
 python manage.py migrate
 python manage.py createsuperuser
-
-# Tabs for web + workers
 python manage.py runserver 0.0.0.0:8000
 celery -A core worker -l info
 celery -A core beat -l info
 ```
 
-### 2. Docker Compose
+### Docker Compose
 
 ```bash
 cp env.example .env
 docker compose up --build
 ```
 
-Services become available at:
+Key endpoints:
 
-- `http://localhost:8000` – Dashboard + REST API
-- `ws://localhost:8000/ws/updates/` – WebSocket channel
-- `http://localhost:8000/api/docs/` – Spectacular Swagger UI
-- GitHub Actions CI runs on every push/PR targeting `delivery` (Django checks + smoke tests)
+- `http://localhost:8000` dashboard + REST
+- `http://localhost:8000/api/docs/` Swagger UI
+- `ws://localhost:8000/ws/updates/` WebSocket feed
 
-#### Populate sample data
-
-1. Visit `http://localhost:8000/admin/` and log in with the superuser you created.
-2. Add at least three `Location` entries (name + coordinates).
-3. Optional: create `Alert config` for each location (e.g. `temp_gt 30`).
-4. Trigger a manual fetch (admin → run `fetch_and_store_weather` via Celery or wait for the beat to run) to populate telemetry.
+Sample data: add locations via Django admin, create alert configs, run Celery beat or trigger `fetch_and_store_weather` manually.
 
 ---
 
-## 📦 Project Structure
-
-```
-space-weather-monitoring-platform/
-├── core/                 # Settings, Celery, ASGI/WSGI
-├── telemetry/            # Domain logic, APIs, tasks, websockets
-├── templates/            # Dashboard & management pages
-├── docker-compose.yml    # Local orchestration (web, worker, beat, redis, postgres)
-├── Dockerfile            # Application image
-├── requirements.txt      # Locked dependencies
-├── env.example           # Environment variables blueprint
-└── telemetry/tests.py    # Comprehensive suite (~300 assertions)
-```
-
----
-
-## 📚 API Reference
+## API Surface
 
 Base URL: `https://<host>/api/`
 
-| Method | Endpoint                           | Description                                   |
-| ------ | ---------------------------------- | --------------------------------------------- |
-| `GET`  | `/locations/`                      | List authenticated user's locations           |
-| `POST` | `/locations/`                      | Create location (name + optional coordinates) |
-| `GET`  | `/weather/{location_id}/?hours=24` | Recent telemetry (latest + time series)       |
-| `POST` | `/alerts/config/`                  | Create alert threshold for a location         |
-| `GET`  | `/alerts/history/`                 | Last 200 alert firings for the user           |
+| Method | Endpoint                           | Purpose                        |
+| ------ | ---------------------------------- | ------------------------------ |
+| `GET`  | `/locations/`                      | List user's locations          |
+| `POST` | `/locations/`                      | Add location (name + coords)   |
+| `GET`  | `/weather/{location_id}/?hours=24` | Latest + time series telemetry |
+| `POST` | `/alerts/config/`                  | Configure alert threshold      |
+| `GET`  | `/alerts/history/`                 | Recent alert events            |
 
-#### Example: Create Location
-
-```http
-POST /api/locations/
-Authorization: Bearer <JWT>
-Content-Type: application/json
-
-{
-  "name": "Tokyo Ground Station",
-  "latitude": 35.6895,
-  "longitude": 139.6917
-}
-```
-
-```http
-201 Created
-
-{
-  "id": 7,
-  "name": "Tokyo Ground Station",
-  "latitude": 35.6895,
-  "longitude": 139.6917
-}
-```
-
-#### Example: Weather Snapshot
-
-```http
-GET /api/weather/7/?hours=24
-Authorization: Bearer <JWT>
-```
-
-```json
-{
-  "location": {"id": 7, "name": "Tokyo Ground Station"},
-  "latest": {
-    "timestamp": "2025-11-07T18:30:00Z",
-    "temperature_c": 11.2,
-    "wind_speed_ms": 6.4,
-    "humidity": 0.71
-  },
-  "series": [
-    {"timestamp": "2025-11-07T00:00:00Z", "temperature_c": 9.8, ...},
-    {"timestamp": "2025-11-07T00:30:00Z", "temperature_c": 10.1, ...}
-  ]
-}
-```
+JWT auth secures the API; session auth powers SSR pages. Swagger UI contains schema examples for all endpoints.
 
 ---
 
-## 🔄 Background Jobs & Alert Engine
+## Background Jobs & Alerts
 
-- **Scheduler**: `django-celery-beat` triggers `telemetry.tasks.fetch_and_store_weather` every 30 minutes.
-- **Rate Safety**: 1.1s delay between requests prevents OWM free-tier breaches.
-- **Deduplication**: `(location, timestamp)` unique constraint keeps telemetry idempotent.
-- **Alert Evaluation**: Configurable `metric_op` schema (`temp_gt`, `wind_lt`, `humidity_gt`, ...). On breach:
-  - Persist `AlertHistory`
-  - Attempt email via `ALERT_NOTIFICATION_EMAIL`
-  - Push real-time badge update over Channels
-- **WebSocket Fan-out**: Users join `user_<id>` groups. Dashboard auto-updates cards and Plotly chart.
-
-```text
-Celery Beat → Worker → Telemetry Save
-                               ↓
-                        evaluate_alerts()
-                               ↓
-        ┌───────────────┬───────────────┬───────────────┐
-        │PostgreSQL     │Email (optional)│Channels Redis │
-        └───────────────┴───────────────┴───────────────┘
-```
+- `django-celery-beat` schedules `telemetry.tasks.fetch_and_store_weather` every 30 minutes.
+- Ingestion enforces a 1.1s delay between API calls to stay within OpenWeatherMap free tier.
+- `(location, timestamp)` uniqueness guards against duplicate telemetry.
+- Alerts persist to `AlertHistory`, attempt email via `ALERT_NOTIFICATION_EMAIL`, and broadcast WebSocket updates.
 
 ---
 
-## 🗄️ Data Model Snapshot
+## Configuration
 
-```sql
-CREATE TABLE telemetry_location (
-  id SERIAL PRIMARY KEY,
-  name VARCHAR(120) NOT NULL,
-  latitude DOUBLE PRECISION,
-  longitude DOUBLE PRECISION,
-  added_by_user_id INT REFERENCES auth_user(id)
-);
-
-CREATE TABLE telemetry_telemetry (
-  id SERIAL PRIMARY KEY,
-  location_id INT REFERENCES telemetry_location(id),
-  timestamp TIMESTAMPTZ NOT NULL,
-  temperature_c DOUBLE PRECISION,
-  wind_speed_ms DOUBLE PRECISION,
-  humidity DOUBLE PRECISION,
-  UNIQUE(location_id, timestamp)
-);
-
-CREATE INDEX telemetry_time_idx ON telemetry_telemetry (location_id, timestamp DESC);
-```
-
----
-
-## 📊 Dashboard Experience
-
-- Landing view shows all locations as status cards (`alert`, `warning`, `normal`, `no data`).
-- Plotly chart renders 24h temperature/wind trend for the selected station.
-- Location page supports manual coordinate entry + geocoding cache (OpenWeatherMap geocoder).
-- Historical view shows quick min/max/avg stats per metric.
-- Alerts configuration toggles active state and threshold without leaving the page.
-- Dashboard surfaces an SMTP health ribbon when recent alerts fail to reach users.
-
----
-
-## 🔐 Security Considerations
-
-- JWT bearer auth for REST clients (SimpleJWT refresh/obtain endpoints)
-- Session auth for SSR pages with `LOGIN_URL=/admin/login/`
-- DRF throttling: `user=120/min`, `anon=60/min`
-- Redis-backed cache avoids redundant API hits; `CACHE_URL` configurable
-- Email backend defaults to console; override via `EMAIL_URL` for production
-- HTTPS termination recommended via fronting Nginx or platform TLS
-
----
-
-## 🔧 Configuration
-
-Set via `.env` (see `env.example`, which is the canonical template to copy):
+Copy `.env.example` and set at minimum:
 
 ```
-DJANGO_ENV=production
 SECRET_KEY=change-me
 DEBUG=False
 ALLOWED_HOSTS=localhost,weather.example.com
-
 POSTGRES_DB=space_weather
 POSTGRES_USER=space_admin
 POSTGRES_PASSWORD=supersecret
 POSTGRES_HOST=postgres
-POSTGRES_PORT=5432
-
 OWM_API_KEY=<openweathermap-key>
-CACHE_URL=redis://redis:6379/2
 CELERY_BROKER_URL=redis://redis:6379/0
 CELERY_RESULT_BACKEND=redis://redis:6379/1
-REDIS_HOST=redis
-REDIS_PORT=6379
+CACHE_URL=redis://redis:6379/2
 
-# Email alerts (optional)
+# Optional email alerts
 EMAIL_BACKEND=django.core.mail.backends.smtp.EmailBackend
-EMAIL_HOST=smtp.example.com
-EMAIL_PORT=587
-EMAIL_HOST_USER=alerts@example.com
-EMAIL_HOST_PASSWORD=app-password
-EMAIL_USE_TLS=True
-EMAIL_USE_SSL=False
-DEFAULT_FROM_EMAIL=noreply@spaceweather.dev
 ALERT_NOTIFICATION_EMAIL=alerts@example.com
-ALERT_EMAIL_MAX_ATTEMPTS=3
-ALERT_EMAIL_RETRY_BACKOFF_SECONDS=5.0
-WEATHER_CACHE_SECONDS=30
-DASHBOARD_REFRESH_MAX_AGE_SECONDS=2700
-DASHBOARD_REFRESH_COOLDOWN_SECONDS=300
 ```
 
-> ⚠️ **Gmail App Password**: If you use Gmail for alert delivery, enable 2FA on the account and create an App Password. Assign that value to `EMAIL_HOST_PASSWORD`; normal login passwords are rejected by Gmail SMTP.
-
-Deploy targets (Render, Railway, or ECS) only require linking Postgres + Redis services and pointing `CELERY_*` URLs accordingly.
+Gmail users should enable 2FA and create an App Password before populating `EMAIL_HOST_PASSWORD`.
 
 ---
 
-## 🧪 Quality Gates
+## Design Decisions (≤500 words)
 
-- `python manage.py test telemetry` (1,500+ lines of tests covering models, serializers, API auth, task happy/sad paths, and chart JSON)
-- `python manage.py spectacular --file schema.yaml` (OpenAPI contract check)
-- `ruff check` + `black --check` (optional pre-commit hooks)
+- **Data model**: `Location`, `Telemetry`, `AlertConfig`, `AlertHistory`, and `GeocodeCache` remain lean. `Telemetry` enforces `(location, timestamp)` uniqueness for idempotent writes; alerts only record triggered events.
+- **Caching**: Redis keys `weather:<user>:<location>:<hours>` separate tenant data. TTL keeps dashboards near real time while respecting API quotas; `GeocodeCache` accelerates repeated lookups.
+- **Background jobs**: Single beat schedule keeps orchestration simple. Tasks catch typed exceptions, apply retry/backoff for email, and inline alert evaluation to avoid extra queues while workloads stay modest.
+- **Scale path**: For 1000+ locations, shard Celery workers by queue, move Redis to managed hosting, front API with PgBouncer, pre-compute hourly aggregates for dashboards, and run multiple ASGI instances behind Nginx or ALB.
 
----
-
-## 🧭 Design Decisions (≤500 words)
-
-- **Data model**: `Location`, `Telemetry`, `AlertConfig`, `AlertHistory`, `GeocodeCache` tabloları yalın tutuldu. `Telemetry` benzersizlik ve `(location, timestamp)` index’i ile idempotent çalışır, `AlertHistory` sadece tetiklenen olayları saklar.
-- **Ön bellek**: Redis, `weather:<user>:<location>:<hours>` anahtarıyla çoklu kiracıyı izole eder. TTL (`WEATHER_CACHE_SECONDS`) ile dashboard neredeyse gerçek zamanlı kalırken OWM kotası korunur. `GeocodeCache` ise aynı şehir aramalarını hızlandırır.
-- **Arka plan işleri**: `django-celery-beat` 30 dakikalık tetikleyici kurar; görevler rate-limit dostu şekilde sıraya alınır, dış çağrılar tiplenmiş istisnalarla korunur. Uyarı değerlendirmesi aynı süreçte gerçekleşir, e-posta bildirimi ayarlanabilir deneme/backoff değerleriyle güvenceye alınır.
-- **Ölçek**: 1000+ lokasyon için birden fazla Celery worker ve kuyruğu (ID mod N) kullanın, Redis’i yönetilen servise taşıyın, Postgres için PgBouncer ekleyin. Dashboard varsayılanları için saatlik özetleri önceden üretin; Channels’ı çoklu ASGI instansıyla Nginx/ALB arkasında koşturun.
-
-Kelime sayısı ≈ 170.
+Word count ≈ 160.
 
 ---
 
-## 📡 Deployment Playbook
+## Submission & Ops Notes
 
-1. Build container image (`docker build -t space-weather-web .`).
-2. Provision managed Postgres + Redis (Railway/Render/ECS).
-3. Configure environment variables + run migrations (`python manage.py migrate`).
-4. Launch ASGI server (`daphne core.asgi:application --port 8000`).
-5. Scale Celery worker + beat as separate processes or containers.
-6. Populate initial data via Django admin or fixture of your choice.
-
-Production readiness checklist covers health endpoints (`/healthz` custom view available in `telemetry.views.LocationListCreate` if extended), centralized logging, and TLS termination.
+- Docker image builds via `docker build -t space-weather-web .`.
+- Managed Postgres + Redis plus `python manage.py migrate` prepares staging/production.
+- `.env.example` and Swagger docs summarize setup in the handoff email.
+- Private GitHub repo shared with `perceptivespace`; deployment credentials in the delivery email.
 
 ---
 
-## 🛰️ Monitoring & Ops
+## AI Assistance Disclosure
 
-- Celery task logs highlight API failures / rate limit hits.
-- Redis `INFO` monitors channel-layer fan-out; integrate with Grafana later.
-- Postgres metrics via `pg_stat_statements` (optional extension).
-- Future: plug Prometheus exporters (Flower for Celery, django-prometheus middleware).
+Tools: Cursor (lint suggestions), GitHub Copilot CLI (test command stubs). Usage limited to verifying `ruff`/`pytest` commands and wording edits; architecture, data modeling, and documentation remain authored manually.
 
 ---
 
-## 📅 Delivery & Time Log
-
-| Day | Window (UTC) | Focus                                                           | Logged Time |
-| --- | ------------ | --------------------------------------------------------------- | ----------- |
-| Tue | 17:30–22:15  | Project bootstrap, models, migrations, base REST endpoints      | 4h 45m      |
-| Wed | 18:00–22:30  | Dashboard templates, Plotly chart, cache wiring, websocket flow | 4h 30m      |
-| Thu | 17:15–22:00  | Celery beat, alert email hooks, Docker, docs polish             | 4h 45m      |
-
-- **Core deliverable** finished within ~10h for required scope.
-- **Additional 4–5h** invested in hardening (rate limiting, swagger, Docker polish) to reflect the team's 50–60h/week culture and weekend readiness.
-- **Total effort** ≈ 14 hours (core delivery 10 hours + 4 hours quality improvements).
-- Comfortable flexing into weekend/night deployments when operational needs demand it.
-
----
-
-## 🤖 AI Assistance Disclosure
-
-- Tools: Cursor (lint suggestions), GitHub Copilot CLI (test command stubs).
-- Usage: verifying `ruff`/`pytest` invocations and rephrasing two doc sentences.
-- Architecture, data modeling, alert logic, and documentation structure were crafted manually.
-
----
-
-## 📬 Submission Checklist
-
-- GitHub: Private repository created, `perceptivespace` invited with collaborator access.
-- Deployment: Live URL and demo credentials will be shared via email (admin dashboard user).
-- Setup notes: `.env.example`, Docker Compose, and admin bootstrap steps will be summarized in the email.
-- Time spent: ~14 hours based on the table above will be reported in the email.
-
----
-
-**Space Weather Monitoring Platform** – built for resilient satellite operations with pragmatic, production-grade engineering.
+Space Weather Monitoring Platform — built for resilient satellite operations with pragmatic, production-grade engineering.
