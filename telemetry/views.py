@@ -13,15 +13,22 @@ from django.contrib import messages
 from django.views import View
 from django.contrib.auth.mixins import LoginRequiredMixin
 from django.conf import settings
-from .models import Location, Telemetry, AlertConfig, AlertHistory
-from .serializers import LocationSerializer, AlertConfigSerializer, AlertHistorySerializer
-from .permissions import IsAdminOrOwner
-from .geocode import geocode_city
-from .owm_client import fetch_current_by_coords
+from drf_spectacular.utils import extend_schema, OpenApiParameter, OpenApiResponse
+from drf_spectacular.types import OpenApiTypes
 from django.core.cache import cache
 import json
 import logging
 import requests
+from .models import Location, Telemetry, AlertConfig, AlertHistory
+from .serializers import (
+    LocationSerializer,
+    AlertConfigSerializer,
+    AlertHistorySerializer,
+    WeatherByLocationResponseSerializer,
+)
+from .permissions import IsAdminOrOwner
+from .geocode import geocode_city
+from .owm_client import fetch_current_by_coords
 
 logger = logging.getLogger(__name__)
 
@@ -133,6 +140,21 @@ class LocationListCreate(ListCreateAPIView):
 class WeatherByLocation(APIView):
     permission_classes = [IsAuthenticated]
 
+    @extend_schema(
+        parameters=[
+            OpenApiParameter(
+                name='hours',
+                type=OpenApiTypes.INT,
+                location=OpenApiParameter.QUERY,
+                description='Number of hours (1-168) of telemetry history to include.',
+            )
+        ],
+        responses={
+            200: WeatherByLocationResponseSerializer,
+            403: OpenApiResponse(description='User does not own the requested location.'),
+            404: OpenApiResponse(description='Location not found.'),
+        },
+    )
     def get(self, request, location_id):
         """Return recent data for the location, using a short cache."""
         location = get_object_or_404(Location, id=location_id, added_by_user=request.user)
@@ -177,6 +199,14 @@ class WeatherByLocation(APIView):
 class AlertConfigCreate(APIView):
     permission_classes = [IsAuthenticated]
 
+    @extend_schema(
+        request=AlertConfigSerializer,
+        responses={
+            201: AlertConfigSerializer,
+            400: OpenApiResponse(description='Validation errors for alert configuration.'),
+            403: OpenApiResponse(description='Attempt to configure alert for a location owned by another user.'),
+        },
+    )
     def post(self, request):
         serializer = AlertConfigSerializer(data=request.data)
         if serializer.is_valid():
@@ -194,6 +224,11 @@ class AlertConfigCreate(APIView):
 class AlertHistoryList(APIView):
     permission_classes = [IsAuthenticated, IsAdminOrOwner]
     
+    @extend_schema(
+        responses={
+            200: AlertHistorySerializer(many=True),
+        }
+    )
     def get(self, request):
         qs = AlertHistory.objects.filter(user=request.user)
         serializer = AlertHistorySerializer(qs, many=True)
@@ -203,6 +238,7 @@ class AlertHistoryList(APIView):
 @method_decorator(login_required, name='dispatch')
 class LocationPageView(APIView):
     template_name = 'locations.html'
+    schema = None
 
     def get(self, request):
         qs = Location.objects.filter(added_by_user=request.user).order_by('name')
@@ -253,6 +289,7 @@ class LocationPageView(APIView):
 
 @method_decorator(login_required, name='dispatch')
 class DeleteLocationView(APIView):
+    schema = None
     def post(self, request, pk):
         loc = get_object_or_404(Location, pk=pk, added_by_user=request.user)
         name = loc.name

@@ -50,3 +50,9 @@ class AlertHistorySerializer(serializers.ModelSerializer):
     class Meta:
         model = AlertHistory
         fields = ('triggered_at','condition','value','location','user','user_notified')
+
+
+class WeatherByLocationResponseSerializer(serializers.Serializer):
+    location = LocationSerializer()
+    latest = TelemetrySerializer(allow_null=True)
+    series = TelemetrySerializer(many=True)
