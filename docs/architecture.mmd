@@ -1,7 +1,10 @@
 %% Space Weather Monitoring Platform - High Level Diagram
 graph TB
-    subgraph "External Weather"
-        OWM[OpenWeatherMap API]
+    subgraph "External Providers"
+        OWM_WEATHER[OpenWeatherMap Weather API]
+        OWM_GEOCODE[OpenWeatherMap Geocode API]
+        OPENMETEO[Open-Meteo Geocoding API]
+        SMTP[SMTP Email Provider]
     end
 
     subgraph "Schedulers"
@@ -26,11 +29,15 @@ graph TB
     end
 
     BEAT -->|schedule| WORKER
-    WORKER -->|fetch| OWM
+    WORKER -->|fetch weather| OWM_WEATHER
     WORKER -->|persist telemetry| DB
     WORKER -->|evaluate alerts| DJANGO
     WORKER -.->|publish updates| CHANNELS
-    WORKER -->|warm cache| CACHE
+    WORKER -->|send alert email| SMTP
+    DJANGO -->|primary geocode| OWM_GEOCODE
+    DJANGO -->|fallback geocode| OPENMETEO
+    DJANGO -->|cache responses| CACHE
+    DJANGO -->|ORM| DB
     DJANGO -->|REST| API
     DJANGO -->|SSR pages| SSR
     DJANGO -->|WS handshake| CHANNELS
