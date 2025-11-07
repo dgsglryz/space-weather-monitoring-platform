@@ -8,6 +8,12 @@
 {% block body %}
 <h1>Weather Dashboard</h1>
 
+{% if email_issue %}
+<div style="margin:16px 0;padding:12px;border-radius:8px;background:#fff4e5;border:1px solid #f0c36d;color:#8a6d3b;">
+  Alert emails could not be delivered for one or more events. Please verify SMTP credentials.
+</div>
+{% endif %}
+
 {% if cards %}
 <div class="grid grid-3" style="display:grid;gap:16px;grid-template-columns:repeat(auto-fill,minmax(240px,1fr));margin:16px 0">
   {% for item in cards %}
@@ -149,11 +155,12 @@ window.draw = draw;
 document.getElementById('refresh').addEventListener('click', draw);
 document.getElementById('loc').addEventListener('change', draw);
 document.addEventListener('DOMContentLoaded', draw);
+const REFRESH_INTERVAL_MS = ({{ refresh_cooldown_seconds|default:300 }} || 300) * 1000;
 setInterval(() => {
   const status = document.getElementById('status');
   if (status.textContent === 'loading…') return;
   draw();
-}, 60000);
+}, REFRESH_INTERVAL_MS);
 </script>
 <script>
   (function(){

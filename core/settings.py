@@ -3,7 +3,14 @@ from dotenv import load_dotenv
 from celery.schedules import crontab
 import os
 
-load_dotenv()
+try:
+    load_dotenv()
+except OSError as exc:
+    import warnings
+    warnings.warn(
+        f"Could not load .env file ({exc}). Continuing with environment defaults.",
+        RuntimeWarning,
+    )
 
 BASE_DIR = Path(__file__).resolve().parent.parent
 
@@ -132,6 +139,10 @@ OWM_API_KEY = os.getenv("OWM_API_KEY", "")
 CELERY_BROKER_URL = os.getenv("CELERY_BROKER_URL", "redis://localhost:6379/0")
 CELERY_RESULT_BACKEND = os.getenv("CELERY_RESULT_BACKEND", "redis://localhost:6379/1")
 
+WEATHER_CACHE_SECONDS = int(os.getenv("WEATHER_CACHE_SECONDS", "30"))
+DASHBOARD_REFRESH_MAX_AGE_SECONDS = int(os.getenv("DASHBOARD_REFRESH_MAX_AGE_SECONDS", "2700"))
+DASHBOARD_REFRESH_COOLDOWN_SECONDS = int(os.getenv("DASHBOARD_REFRESH_COOLDOWN_SECONDS", "300"))
+
 CELERY_BEAT_SCHEDULE = {
     'fetch_weather_30min': {
         'task' : 'telemetry.tasks.fetch_and_store_weather',
@@ -155,8 +166,19 @@ CHANNEL_LAYERS = {
     }
 }
 
-EMAIL_BACKEND = 'django.core.mail.backends.console.EmailBackend'
-DEFAULT_FROM_EMAIL = os.getenv('DEFAULT_FROM_EMAIL','alert@example.com')
+EMAIL_BACKEND = os.getenv('EMAIL_BACKEND', 'django.core.mail.backends.console.EmailBackend')
+
+EMAIL_HOST = os.getenv('EMAIL_HOST')
+EMAIL_PORT = int(os.getenv('EMAIL_PORT', '587'))
+EMAIL_HOST_USER = os.getenv('EMAIL_HOST_USER')
+EMAIL_HOST_PASSWORD = os.getenv('EMAIL_HOST_PASSWORD')
+EMAIL_USE_TLS = os.getenv('EMAIL_USE_TLS', 'True').lower() in ('1', 'true', 'yes', 'on')
+EMAIL_USE_SSL = os.getenv('EMAIL_USE_SSL', 'False').lower() in ('1', 'true', 'yes', 'on')
+
+DEFAULT_FROM_EMAIL = os.getenv('DEFAULT_FROM_EMAIL', 'alert@example.com')
+ALERT_NOTIFICATION_EMAIL = os.getenv('ALERT_NOTIFICATION_EMAIL')
+ALERT_EMAIL_MAX_ATTEMPTS = int(os.getenv('ALERT_EMAIL_MAX_ATTEMPTS', '1'))
+ALERT_EMAIL_RETRY_BACKOFF_SECONDS = float(os.getenv('ALERT_EMAIL_RETRY_BACKOFF_SECONDS', '1.0'))
 
 ASGI_APPLICATION = "core.asgi.application"
 

@@ -4,6 +4,9 @@ Test settings for running tests without PostgreSQL/Redis
 from .settings import *
 import os
 
+# Remove optional third-party apps that require system zoneinfo files
+INSTALLED_APPS = [app for app in INSTALLED_APPS if app != 'django_celery_beat']
+
 # Use SQLite for tests (faster, no setup required)
 DATABASES = {
     'default': {

@@ -11,19 +11,23 @@ from django.utils.decorators import method_decorator
 from django.contrib import messages
 from django.views import View
 from django.contrib.auth.mixins import LoginRequiredMixin
+from django.conf import settings
 from .models import Location, Telemetry, AlertConfig, AlertHistory
 from .serializers import LocationSerializer, AlertConfigSerializer, AlertHistorySerializer
 from .permissions import IsAdminOrOwner
 from .geocode import geocode_city
 from .owm_client import fetch_current_by_coords
 from django.core.cache import cache
+import json
 import logging
 
 logger = logging.getLogger(__name__)
 
 # Constants for default values and thresholds
 DEFAULT_WEATHER_HOURS = 24
-CACHE_TIMEOUT_SECONDS = 30
+CACHE_TIMEOUT_SECONDS = getattr(settings, "WEATHER_CACHE_SECONDS", 30)
+REFRESH_COOLDOWN_SECONDS = getattr(settings, "DASHBOARD_REFRESH_COOLDOWN_SECONDS", 300)
+REFRESH_MAX_AGE_SECONDS = getattr(settings, "DASHBOARD_REFRESH_MAX_AGE_SECONDS", 2700)
 TEMPERATURE_WARNING_THRESHOLD = 5  # Celsius
 WIND_SPEED_WARNING_THRESHOLD = 8  # m/s
 
@@ -72,6 +76,43 @@ def create_telemetry_from_weather_data(location, weather_data):
         return None
 
 
+def _summaries_from_queryset(qs):
+    """Aggregate min/max/avg statistics for telemetry metrics."""
+    stats = {
+        'temp_min': None,
+        'temp_max': None,
+        'temp_avg': None,
+        'wind_min': None,
+        'wind_max': None,
+        'wind_avg': None,
+        'humidity_min': None,
+        'humidity_max': None,
+        'humidity_avg': None,
+    }
+
+    def summarize(values):
+        filtered = [v for v in values if v is not None]
+        if not filtered:
+            return None
+        total = sum(filtered)
+        count = len(filtered)
+        return min(filtered), max(filtered), total / count
+
+    temp_stats = summarize([item.temperature_c for item in qs])
+    if temp_stats:
+        stats['temp_min'], stats['temp_max'], stats['temp_avg'] = temp_stats
+
+    wind_stats = summarize([item.wind_speed_ms for item in qs])
+    if wind_stats:
+        stats['wind_min'], stats['wind_max'], stats['wind_avg'] = wind_stats
+
+    humidity_stats = summarize([item.humidity for item in qs])
+    if humidity_stats:
+        stats['humidity_min'], stats['humidity_max'], stats['humidity_avg'] = humidity_stats
+
+    return stats
+
+
 class LocationListCreate(ListCreateAPIView):
     serializer_class = LocationSerializer
     permission_classes = [IsAuthenticated]
@@ -86,7 +127,7 @@ class LocationListCreate(ListCreateAPIView):
         non-blocking - location is created even if weather fetch fails.
         """
         location = serializer.save(added_by_user=self.request.user)
-        if location.latitude and location.longitude:
+        if location.latitude is not None and location.longitude is not None:
             try:
                 data = fetch_current_by_coords(location.latitude, location.longitude)
                 create_telemetry_from_weather_data(location, data)
@@ -243,21 +284,22 @@ class AlertConfigView(LoginRequiredMixin, View):
         is_active = request.POST.get('is_active') == 'on'
 
         loc = get_object_or_404(Location, id=loc_id, added_by_user=request.user)
-
-        try:
-            val = float(thr_value)
-        except (TypeError, ValueError):
-            messages.error(request, 'Invalid threshold value')
-            return redirect('alerts-config')
-
-        AlertConfig.objects.create(
-            user=request.user,
-            location=loc,
-            threshold_type=thr_type,
-            threshold_value=val,
-            is_active=is_active
+        serializer = AlertConfigSerializer(
+            data={
+                'location': loc.id,
+                'threshold_type': thr_type,
+                'threshold_value': thr_value,
+                'is_active': is_active,
+            }
         )
-        messages.success(request, 'Alert configuration saved')
+
+        if serializer.is_valid():
+            serializer.save(user=request.user)
+            messages.success(request, 'Alert configuration saved')
+        else:
+            error_text = '; '.join([f"{field}: {', '.join(vals)}" for field, vals in serializer.errors.items()])
+            messages.error(request, f'Unable to save alert: {error_text}')
+
         return redirect('alerts-config')
 
 
@@ -330,12 +372,19 @@ class DashboardView(LoginRequiredMixin, View):
             telemetry = Telemetry.objects.filter(location_id=first_id, timestamp__gte=since).order_by('timestamp')
             series = build_telemetry_series(telemetry)
 
-        return render(request, self.template_name, {
+        email_issue = AlertHistory.objects.filter(user=request.user, user_notified=False).exists()
+
+        response = render(request, self.template_name, {
             'locations': locs,
-            'cards': cards, 
+            'cards': cards,
             'first_location_id': first_id,
-            'series_json': series
+            'series_json': series,
+            'refresh_cooldown_seconds': REFRESH_COOLDOWN_SECONDS,
+            'refresh_max_age_seconds': REFRESH_MAX_AGE_SECONDS,
+            'email_issue': email_issue,
         })
+        response['Cache-Control'] = f"private, max-age={int(REFRESH_MAX_AGE_SECONDS)}"
+        return response
 
     def _status_for(self, loc, latest):
         """Determine status badge for location card.
@@ -377,3 +426,41 @@ class DashboardView(LoginRequiredMixin, View):
             return 'warning'
             
         return 'normal'
+
+
+class LocationHistoricalView(LoginRequiredMixin, View):
+    template_name = 'location_historical.html'
+
+    def get(self, request, pk):
+        location = get_object_or_404(Location, pk=pk, added_by_user=request.user)
+        hours = self._parse_hours(request.GET.get('hours', DEFAULT_WEATHER_HOURS))
+        since = timezone.now() - timedelta(hours=hours)
+
+        telemetry = Telemetry.objects.filter(
+            location=location,
+            timestamp__gte=since,
+        ).order_by('timestamp')
+
+        series = build_telemetry_series(telemetry)
+        latest = telemetry.last()
+        stats = _summaries_from_queryset(telemetry)
+
+        context = {
+            'location': location,
+            'hours': hours,
+            'series_json': json.dumps(series),
+            'latest': latest,
+            'stats': stats,
+            'data_count': telemetry.count(),
+        }
+
+        return render(request, self.template_name, context)
+
+    @staticmethod
+    def _parse_hours(raw_value):
+        try:
+            hours = int(raw_value)
+        except (TypeError, ValueError):
+            return DEFAULT_WEATHER_HOURS
+
+        return min(168, max(1, hours))

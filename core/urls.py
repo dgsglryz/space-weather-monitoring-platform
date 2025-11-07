@@ -6,9 +6,10 @@ from rest_framework_simplejwt.views import TokenObtainPairView, TokenRefreshView
 from django.views.generic.base import RedirectView
 from telemetry.views import (
     LocationPageView, DeleteLocationView, DashboardView,
-    AlertConfigView, AlertConfigToggleView, AlertConfigDeleteView, AlertHistoryView
+    AlertConfigView, AlertConfigToggleView, AlertConfigDeleteView, AlertHistoryView,
+    LocationHistoricalView,
 )
-from drf_spectacular.views import SpectacularAPIView, SpectacularSwaggerView
+from drf_spectacular.views import SpectacularAPIView, SpectacularSwaggerView  # type: ignore[import]
 
 urlpatterns = [
     path('', RedirectView.as_view(url='/dashboard/', permanent=False)),
@@ -18,6 +19,7 @@ urlpatterns = [
     path('api/', include('telemetry.urls')),
     path('dashboard/', DashboardView.as_view(), name='dashboard'),
     path('locations-page/', LocationPageView.as_view(), name='locations-page'),
+    path('locations-page/<int:pk>/historical/', LocationHistoricalView.as_view(), name='location-historical'),
     path('locations-page/delete/<int:pk>/delete/', DeleteLocationView.as_view(), name='delete-location'),
     path('alerts-config/',AlertConfigView.as_view(),name='alerts-config'),
     path('alerts-config/<int:pk>/toggle/',AlertConfigToggleView.as_view(),name='alerts-config-toggle'),

@@ -1,4 +1,5 @@
 from celery import shared_task
+from django.conf import settings
 from django.utils import timezone
 from datetime import timedelta
 from .models import Location, Telemetry, AlertConfig, AlertHistory
@@ -123,9 +124,11 @@ def send_alert_email(cfg, location, val):
 
     recipient = getattr(settings, "ALERT_NOTIFICATION_EMAIL", None)
     if not recipient:
-        logger.debug(
-            "No ALERT_NOTIFICATION_EMAIL configured; skipping alert email for %s",
-            cfg.user.username,
+        recipient = cfg.user.email
+
+    if not recipient:
+        logger.warning(
+            "No email recipient configured for alert belonging to %s", cfg.user.username
         )
         return False
 
@@ -138,31 +141,40 @@ def send_alert_email(cfg, location, val):
     )
 
     to = [recipient]
+    from_email = getattr(settings, 'DEFAULT_FROM_EMAIL', None)
 
-    try:
-        sent_count = send_mail(subject, body, None, to, fail_silently=False)
-        if sent_count == 0:
-            logger.warning(
-                "send_mail returned 0 for alert email to %s at %s",
+    attempts = max(getattr(settings, "ALERT_EMAIL_MAX_ATTEMPTS", 1), 1)
+    backoff = max(getattr(settings, "ALERT_EMAIL_RETRY_BACKOFF_SECONDS", 0.0), 0.0)
+
+    for attempt in range(1, attempts + 1):
+        try:
+            sent_count = send_mail(subject, body, from_email, to, fail_silently=False)
+            if sent_count == 0:
+                logger.warning(
+                    "send_mail returned 0 for alert email to %s at %s",
+                    cfg.user.username,
+                    location.name,
+                )
+                return False
+            logger.debug(
+                "Alert email sent successfully to %s for %s",
                 cfg.user.username,
                 location.name,
             )
-            return False
-        logger.debug(
-            "Alert email sent successfully to %s for %s",
-            cfg.user.username,
-            location.name,
-        )
-        return True
-    except Exception as e:
-        # Log failure but don't raise (preserves old fail_silently=True behavior)
-        logger.error(
-            "Failed to send alert email to %s for location %s: %s",
-            cfg.user.username,
-            location.name,
-            e,
-        )
-        return False
+            return True
+        except Exception as e:
+            logger.error(
+                "Failed to send alert email to %s for location %s on attempt %s/%s: %s",
+                cfg.user.username,
+                location.name,
+                attempt,
+                attempts,
+                e,
+            )
+            if attempt < attempts and backoff:
+                time.sleep(backoff)
+
+    return False
 
 def _publish_update(user_id, payload):
     """Publish WebSocket update for real-time UI refresh.
