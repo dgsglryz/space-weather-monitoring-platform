@@ -4,10 +4,19 @@ import django.db.models.deletion
 
 
 def populate_user_field(apps, schema_editor):
+    """Populate user field for existing AlertHistory records.
+    
+    Tries to find user via matching AlertConfig, falls back to location owner.
+    Safe to run multiple times (only processes records with null user).
+    """
     AlertHistory = apps.get_model('telemetry', 'AlertHistory')
     AlertConfig = apps.get_model('telemetry', 'AlertConfig')
     
     for history in AlertHistory.objects.filter(user__isnull=True):
+        # Safety check: ensure location exists
+        if not history.location:
+            continue
+            
         config = AlertConfig.objects.filter(
             location=history.location,
             threshold_type=history.condition
