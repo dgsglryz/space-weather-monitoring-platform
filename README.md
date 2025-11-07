@@ -114,9 +114,6 @@ pip install -r requirements.txt
 python manage.py migrate
 python manage.py createsuperuser
 
-# Optional: seed demo data (username: demo / password: 1234)
-python manage.py seed_demo
-
 # Tabs for web + workers
 python manage.py runserver 0.0.0.0:8000
 celery -A core worker -l info
@@ -136,6 +133,13 @@ Services become available at:
 - `ws://localhost:8000/ws/updates/` – WebSocket channel
 - `http://localhost:8000/api/docs/` – Spectacular Swagger UI
 - GitHub Actions CI runs on every push/PR targeting `delivery` (Django checks + smoke tests)
+
+#### Populate sample data
+
+1. Visit `http://localhost:8000/admin/` and log in with the superuser you created.
+2. Add at least three `Location` entries (name + coordinates).
+3. Optional: create `Alert config` for each location (e.g. `temp_gt 30`).
+4. Trigger a manual fetch (admin → run `fetch_and_store_weather` via Celery or wait for the beat to run) to populate telemetry.
 
 ---
 
@@ -327,6 +331,8 @@ DASHBOARD_REFRESH_MAX_AGE_SECONDS=2700
 DASHBOARD_REFRESH_COOLDOWN_SECONDS=300
 ```
 
+> ⚠️ **Gmail App Password**: If you use Gmail for alert delivery, enable 2FA on the account and create an App Password. Assign that value to `EMAIL_HOST_PASSWORD`; normal login passwords are rejected by Gmail SMTP.
+
 Deploy targets (Render, Railway, or ECS) only require linking Postgres + Redis services and pointing `CELERY_*` URLs accordingly.
 
 ---
@@ -334,7 +340,6 @@ Deploy targets (Render, Railway, or ECS) only require linking Postgres + Redis s
 ## 🧪 Quality Gates
 
 - `python manage.py test telemetry` (1,500+ lines of tests covering models, serializers, API auth, task happy/sad paths, and chart JSON)
-- `python manage.py seed_demo` (creates demo@example.com + 3 locations with seeded telemetry)
 - `python manage.py spectacular --file schema.yaml` (OpenAPI contract check)
 - `ruff check` + `black --check` (optional pre-commit hooks)
 
@@ -358,7 +363,7 @@ Word count ≈ 236.
 3. Configure environment variables + run migrations (`python manage.py migrate`).
 4. Launch ASGI server (`daphne core.asgi:application --port 8000`).
 5. Scale Celery worker + beat as separate processes or containers.
-6. Optionally seed demo data via `python manage.py loaddata demo_locations.json`.
+6. Populate initial data via Django admin or fixture of your choice.
 
 Production readiness checklist covers health endpoints (`/healthz` custom view available in `telemetry.views.LocationListCreate` if extended), centralized logging, and TLS termination.
 
@@ -399,7 +404,7 @@ Production readiness checklist covers health endpoints (`/healthz` custom view a
 ## 📬 Submission Checklist
 
 - GitHub: Private repository created, `perceptivespace` invited with collaborator access.
-- Deployment: Live URL and demo credentials will be shared via email (username `demo`, password `1234`).
+- Deployment: Live URL and demo credentials will be shared via email (admin dashboard user).
 - Setup notes: `.env.example`, Docker Compose, and admin bootstrap steps will be summarized in the email.
 - Time spent: ~14 hours based on the table above will be reported in the email.
 
