@@ -34,11 +34,7 @@ def _cache_set(city, lat, lon):
 
 
 def _provider_owm(city):
-    """Geocode city using OpenWeatherMap API.
-    
-    Returns (latitude, longitude) tuple on success, None on failure.
-    Logs failures for observability.
-    """
+    """Geocode via the OpenWeatherMap API."""
     key = getattr(settings, 'OWM_API_KEY', '') or os.getenv('OWM_API_KEY', '')
     if not key:
         logger.debug(f"OWM API key missing, skipping geocode for '{city}'")
@@ -65,11 +61,7 @@ def _provider_owm(city):
 
 
 def _provider_openmeteo(city):
-    """Geocode city using OpenMeteo API.
-    
-    Returns (latitude, longitude) tuple on success, None on failure.
-    Logs failures for observability.
-    """
+    """Geocode via the OpenMeteo API."""
     try:
         url = "https://geocoding-api.open-meteo.com/v1/search"
         params = {'name': city, 'count': 1}
@@ -93,11 +85,7 @@ def _provider_openmeteo(city):
 
 
 def geocode_city(city, sleep_seconds=0.0):
-    """Geocode city name to coordinates with provider fallback.
-    
-    Tries OWM first, falls back to OpenMeteo. Returns (lat, lon) tuple
-    or None if all providers fail. Caches successful results.
-    """
+    """Resolve a city to coordinates with caching and fallback."""
     city_norm = _normalize(city)
     if not city_norm:
         return None

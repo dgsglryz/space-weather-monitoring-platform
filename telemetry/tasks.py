@@ -14,7 +14,7 @@ import requests
 
 logger = logging.getLogger(__name__)
 
-# Rate limiting: sleep between API calls to avoid hitting rate limits
+# Simple delay so we do not hit API limits
 API_RATE_LIMIT_DELAY_SECONDS = 1.1
 
 
@@ -26,7 +26,7 @@ def fetch_and_store_weather():
     locations = Location.objects.filter(latitude__isnull=False, longitude__isnull=False)
     
     for idx, loc in enumerate(locations):
-        # Apply rate limiting between API calls to respect provider quotas
+        # Small pause between requests
         if idx > 0:
             time.sleep(API_RATE_LIMIT_DELAY_SECONDS)
         
@@ -59,12 +59,7 @@ def fetch_and_store_weather():
 
 
 def evaluate_alerts(location, measurement):
-    """Check if measurement triggers any active alert configurations.
-    
-    Threshold format: 'metric_op' (e.g., 'temp_gt', 'wind_lt'). Creates
-    AlertHistory record and sends email if threshold exceeded. WebSocket
-    update published regardless of alert status.
-    """
+    """Trigger alert flow for the latest reading."""
     configs = AlertConfig.objects.filter(location=location, is_active=True).select_related('user')
 
     for cfg in configs:
@@ -96,16 +91,11 @@ def evaluate_alerts(location, measurement):
                 user_notified=False
             )
             
-            # Note: Previously with fail_silently=True, send_mail would not raise
-            # and user_notified was always set to True. To preserve behavior,
-            # we catch exceptions and still mark as notified (but log failures).
             try:
                 send_alert_email(cfg, location, val)
-                # Preserve old behavior: mark as notified if no exception raised
                 alert_history.user_notified = True
                 alert_history.save(update_fields=['user_notified'])
             except Exception as e:
-                # Only log if exception occurs; don't mark as notified in this case
                 logger.error(f"Failed to send alert email to {cfg.user.username} for location {location.name}: {e}")
 
         _publish_update(cfg.user.id, {
@@ -120,7 +110,7 @@ def evaluate_alerts(location, measurement):
 
 
 def send_alert_email(cfg, location, val):
-    """Send alert email using optional override recipient from settings."""
+    """Send the alert email and report success."""
 
     recipient = getattr(settings, "ALERT_NOTIFICATION_EMAIL", None)
     if not recipient:
@@ -177,10 +167,7 @@ def send_alert_email(cfg, location, val):
     return False
 
 def _publish_update(user_id, payload):
-    """Publish WebSocket update for real-time UI refresh.
-    
-    Non-critical operation; failures are logged but don't affect main flow.
-    """
+    """Push websocket update; ignore soft failures."""
     try:
         layer = get_channel_layer()
         async_to_sync(layer.group_send)(

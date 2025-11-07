@@ -2,29 +2,17 @@ from rest_framework.permissions import BasePermission
 
 
 class IsAdminOrOwner(BasePermission):
-    """Permission class that allows staff or object owners.
-    
-    For list endpoints: allows staff and authenticated users (views must filter querysets).
-    For object endpoints: checks if user is staff or owns the object.
-    """
+    """Allow staff or the owning user."""
     
     def has_permission(self, request, view):
-        """Check list-level permission.
-        
-        Allows staff and authenticated users. Views using this permission
-        must filter querysets to ensure users only see their own data.
-        """
+        """Allow any authenticated user; staff handled separately."""
         if not request.user or not request.user.is_authenticated:
             return False
         # Allow staff and authenticated users (view handles filtering)
         return True
     
     def has_object_permission(self, request, view, obj):
-        """Check object-level permission.
-        
-        Allows staff or object owners. For objects with 'added_by_user',
-        checks direct ownership. For objects with 'location', checks location ownership.
-        """
+        """Allow staff or the user who owns the object."""
         if request.user.is_staff:
             return True
 

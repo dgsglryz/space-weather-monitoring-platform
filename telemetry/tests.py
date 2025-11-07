@@ -1,4 +1,4 @@
-"""Lean smoke tests for critical Weather Alert Dashboard flows."""
+"""Smoke tests for the Weather Alert Dashboard."""
 
 from datetime import timedelta
 from unittest.mock import patch
@@ -18,7 +18,7 @@ User = get_user_model()
 
 
 class ModelSmokeTests(TestCase):
-    """Minimal coverage for core models."""
+    """Minimal coverage for the core models."""
 
     def setUp(self):
         self.user = User.objects.create_user(

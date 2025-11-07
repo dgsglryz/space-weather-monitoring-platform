@@ -33,11 +33,7 @@ WIND_SPEED_WARNING_THRESHOLD = 8  # m/s
 
 
 def build_telemetry_series(telemetry_queryset):
-    """Build series data from telemetry queryset for chart rendering.
-    
-    Converts Telemetry objects to dict format with timestamp, temperature,
-    wind speed, and humidity. Used consistently across multiple views.
-    """
+    """Turn telemetry rows into chart-friendly dicts."""
     series = []
     for telemetry in telemetry_queryset:
         series.append({
@@ -50,15 +46,7 @@ def build_telemetry_series(telemetry_queryset):
 
 
 def create_telemetry_from_weather_data(location, weather_data):
-    """Create Telemetry record from weather API response.
-    
-    Args:
-        location: Location instance
-        weather_data: Dict with temperature_c, wind_speed_ms, humidity
-        
-    Returns:
-        Telemetry instance or None if creation fails
-    """
+    """Persist a telemetry point from the latest API payload."""
     if not weather_data:
         return None
     
@@ -77,7 +65,7 @@ def create_telemetry_from_weather_data(location, weather_data):
 
 
 def _summaries_from_queryset(qs):
-    """Aggregate min/max/avg statistics for telemetry metrics."""
+    """Collect basic min/max/avg stats for a queryset."""
     stats = {
         'temp_min': None,
         'temp_max': None,
@@ -121,11 +109,7 @@ class LocationListCreate(ListCreateAPIView):
         return Location.objects.filter(added_by_user=self.request.user)
 
     def perform_create(self, serializer):
-        """Create location and fetch initial weather data if coordinates available.
-        
-        Fetches weather immediately on creation to populate dashboard. Failure is
-        non-blocking - location is created even if weather fetch fails.
-        """
+        """Save a location and try to seed a first reading."""
         location = serializer.save(added_by_user=self.request.user)
         if location.latitude is not None and location.longitude is not None:
             try:
@@ -139,11 +123,7 @@ class WeatherByLocation(APIView):
     permission_classes = [IsAuthenticated]
 
     def get(self, request, location_id):
-        """Get weather data for location with optional hours parameter.
-        
-        Uses short cache (30s) for near-real-time updates. Defaults to 24h
-        if invalid hours parameter provided.
-        """
+        """Return recent data for the location, using a short cache."""
         location = get_object_or_404(Location, id=location_id, added_by_user=request.user)
         try:
             hours = int(request.query_params.get('hours', DEFAULT_WEATHER_HOURS))
@@ -340,24 +320,15 @@ class DashboardView(LoginRequiredMixin, View):
         location_ids = [loc.id for loc in locs]
         latest_telemetry = {}
         if location_ids:
-            # Get max timestamp per location in one query
             latest_times = Telemetry.objects.filter(location_id__in=location_ids).values('location_id').annotate(
                 max_time=Max('timestamp')
             )
-            
-            # Build list of (location_id, timestamp) tuples for filtering
             location_timestamp_pairs = [(item['location_id'], item['max_time']) for item in latest_times]
-            
-            # Fetch all latest telemetry objects in a single query using Q objects
             if location_timestamp_pairs:
-                # Build Q object for OR conditions: (location_id=X AND timestamp=Y) OR ...
                 q_objects = Q()
                 for loc_id, max_time in location_timestamp_pairs:
                     q_objects |= Q(location_id=loc_id, timestamp=max_time)
-                
-                # Fetch all matching telemetry in one query
                 latest_telemetry_objects = Telemetry.objects.filter(q_objects).select_related('location')
-                # Build dict for O(1) lookup
                 latest_telemetry = {t.location_id: t for t in latest_telemetry_objects}
 
         for loc in locs:
@@ -392,12 +363,7 @@ class DashboardView(LoginRequiredMixin, View):
         return response
 
     def _status_for(self, loc, latest):
-        """Determine status badge for location card.
-        
-        Checks user-configured alerts first, then applies default warning
-        thresholds (temp < 5°C, wind > 8 m/s). Returns 'alert', 'warning',
-        'normal', or 'no data'.
-        """
+        """Pick the badge to show for a location card."""
         if not latest:
             return 'no data'
         
