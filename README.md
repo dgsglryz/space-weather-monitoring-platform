@@ -6,6 +6,8 @@ Production-ready weather monitoring and alerting for satellite ground stations. 
 - Diagram: `docs/architecture.png` (Mermaid source: `docs/architecture.mmd`)
 - Local demo: username `demo`, password `1234`
 
+![System architecture](docs/architecture.png)
+
 ## Features
 
 - Django 4.2 + DRF backend (SSR, JWT auth, OpenAPI at `/api/docs/`)
@@ -64,7 +66,7 @@ python manage.py test --settings=core.test_settings
 
 Uses in-memory database/cache and Celery eager mode.
 
-## Design Decisions (under 500 words)
+## Design Decisions
 
 - **Database.** PostgreSQL keeps telemetry, locations, alerts, and histories consistent, with `(location, timestamp)` uniqueness and targeted indexes. Scaling to 1,000+ locations would lean on partitioning plus read replicas.
 - **Caching & rate limits.** Fetch cadence matches OpenWeatherMap’s free tier. Redis caches per-user/location windows and also backs Celery broker/result plus the WebSocket layer, so dashboards refresh without extra API calls.
