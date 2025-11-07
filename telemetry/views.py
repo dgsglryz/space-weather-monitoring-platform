@@ -203,7 +203,7 @@ class LocationPageView(APIView):
 
 
 @method_decorator(login_required, name='dispatch')
-class delete_location(APIView):
+class DeleteLocationView(APIView):
     def post(self, request, pk):
         loc = get_object_or_404(Location, pk=pk, added_by_user=request.user)
         name = loc.name

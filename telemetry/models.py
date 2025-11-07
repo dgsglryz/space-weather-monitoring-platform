@@ -12,6 +12,9 @@ class Location(models.Model):
         related_name="locations"
     )
 
+    def __str__(self):
+        return self.name
+
 
 class Telemetry(models.Model):
     location = models.ForeignKey(Location, on_delete=models.CASCADE, related_name="telemetry")
@@ -26,6 +29,9 @@ class Telemetry(models.Model):
             models.Index(fields=['location', 'timestamp']),
         ]
 
+    def __str__(self):
+        return f"{self.location.name} @ {self.timestamp}"
+
 
 class AlertConfig(models.Model):
     user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name="alert_configs")
@@ -33,6 +39,10 @@ class AlertConfig(models.Model):
     threshold_type = models.CharField(max_length=16)
     threshold_value = models.FloatField()
     is_active = models.BooleanField(default=True)
+
+    def __str__(self):
+        status = "active" if self.is_active else "inactive"
+        return f"{self.location.name} - {self.threshold_type} {self.threshold_value} ({status})"
 
 
 class AlertHistory(models.Model):
@@ -42,6 +52,9 @@ class AlertHistory(models.Model):
     condition = models.CharField(max_length=16)
     value = models.FloatField()
     user_notified = models.BooleanField(default=False)
+
+    def __str__(self):
+        return f"{self.location.name} - {self.condition}={self.value} @ {self.triggered_at}"
 
 
 class GeocodeCache(models.Model):
