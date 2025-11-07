@@ -372,7 +372,12 @@ class DashboardView(LoginRequiredMixin, View):
             telemetry = Telemetry.objects.filter(location_id=first_id, timestamp__gte=since).order_by('timestamp')
             series = build_telemetry_series(telemetry)
 
-        email_issue = AlertHistory.objects.filter(user=request.user, user_notified=False).exists()
+        issue_since = timezone.now() - timedelta(hours=6)
+        email_issue = AlertHistory.objects.filter(
+            user=request.user,
+            user_notified=False,
+            triggered_at__gte=issue_since,
+        ).exists()
 
         response = render(request, self.template_name, {
             'locations': locs,

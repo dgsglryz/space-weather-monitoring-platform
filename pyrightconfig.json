@@ -1,6 +1,0 @@
-{
-  "$schema": "https://raw.githubusercontent.com/microsoft/pyright/main/packages/pyright/bundled/schemas/pyrightconfig.schema.json",
-  "pythonVersion": "3.11",
-  "exclude": ["**/migrations"],
-  "reportMissingImports": "warning"
-}

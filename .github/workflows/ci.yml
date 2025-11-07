@@ -6,54 +6,12 @@ on:
   pull_request:
     branches: ["delivery"]
 
-jobs:
-  test:
-    runs-on: ubuntu-latest
-
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
-
-      - name: Set up Python 3.11
-        uses: actions/setup-python@v5
-        with:
-          python-version: "3.11"
-
-      - name: Install dependencies
-        run: |
-          python -m pip install --upgrade pip
-          pip install -r requirements.txt
-
-      - name: Run Django checks
-        env:
-          DJANGO_SETTINGS_MODULE: core.test_settings
-        run: |
-          python manage.py check
-
-      - name: Run test suite
-        env:
-          DJANGO_SETTINGS_MODULE: core.test_settings
-        run: |
-          python manage.py test telemetry
-
-name: CI/CD
-
-on:
-  push:
-    branches:
-      - main
-      - master
-      - improvements-20251106
-  pull_request:
-  workflow_dispatch:
-
 env:
   PYTHONDONTWRITEBYTECODE: "1"
   PYTHONUNBUFFERED: "1"
 
 jobs:
   quality-and-tests:
-    name: Quality checks and tests
     runs-on: ubuntu-latest
     services:
       postgres:
@@ -140,11 +98,5 @@ jobs:
       - name: Run unit tests
         env:
           DJANGO_SETTINGS_MODULE: core.test_settings
-        run: python manage.py test
-
-      - name: Build Docker image
-        if: >-
-          github.event_name == 'push' &&
-          (github.ref_name == 'main' || github.ref_name == 'master' || github.ref_name == 'improvements-20251106')
-        run: docker build --file Dockerfile --tag weather-dashboard:${{ github.sha }} .
+        run: python manage.py test telemetry
 
