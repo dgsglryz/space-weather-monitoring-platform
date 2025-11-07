@@ -149,6 +149,18 @@
       <a href="/alerts-config/" class="btn" style="padding: 8px 16px; text-decoration: none">Alerts Config</a>
       <a href="/alerts-history/" class="btn" style="padding: 8px 16px; text-decoration: none">Alerts History</a>
     </div>
+    {% if messages %}
+    <div style="margin: 16px 0">
+      {% for m in messages %}
+      <div
+        class="card"
+        style="margin-bottom: 8px; background: {% if m.tags == 'error' %}#fee{% else %}#efe{% endif %}"
+      >
+        {{ m }}
+      </div>
+      {% endfor %}
+    </div>
+    {% endif %}
     {% block body %}{% endblock %}
   </body>
 </html>

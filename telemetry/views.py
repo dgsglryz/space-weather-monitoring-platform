@@ -305,7 +305,11 @@ class AlertConfigView(LoginRequiredMixin, View):
     def get(self, request):
         locations = Location.objects.filter(added_by_user=request.user)
         configs = AlertConfig.objects.filter(user=request.user).select_related('location').order_by('location__name')
-        return render(request, self.template_name, {'locations': locations, 'configs': configs})
+        response = render(request, self.template_name, {'locations': locations, 'configs': configs})
+        response['Cache-Control'] = "no-store, no-cache, must-revalidate, private"
+        response['Pragma'] = "no-cache"
+        response['Expires'] = "0"
+        return response
 
     def post(self, request):
         loc_id = request.POST.get('location')
@@ -409,7 +413,9 @@ class DashboardView(LoginRequiredMixin, View):
             'refresh_max_age_seconds': REFRESH_MAX_AGE_SECONDS,
             'email_issue': email_issue,
         })
-        response['Cache-Control'] = f"private, max-age={int(REFRESH_MAX_AGE_SECONDS)}"
+        response['Cache-Control'] = "no-store, no-cache, must-revalidate, private"
+        response['Pragma'] = "no-cache"
+        response['Expires'] = "0"
         return response
 
     def _status_for(self, loc, latest):
