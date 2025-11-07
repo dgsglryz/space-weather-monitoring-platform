@@ -49,6 +49,12 @@ def fetch_and_store_weather():
 
 
 def evaluate_alerts(location, measurement):
+    """Check if measurement triggers any active alert configurations.
+    
+    Threshold format: 'metric_op' (e.g., 'temp_gt', 'wind_lt'). Creates
+    AlertHistory record and sends email if threshold exceeded. WebSocket
+    update published regardless of alert status.
+    """
     configs = AlertConfig.objects.filter(location=location, is_active=True).select_related('user')
 
     for cfg in configs:

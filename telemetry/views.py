@@ -80,6 +80,11 @@ class LocationListCreate(ListCreateAPIView):
         return Location.objects.filter(added_by_user=self.request.user)
 
     def perform_create(self, serializer):
+        """Create location and fetch initial weather data if coordinates available.
+        
+        Fetches weather immediately on creation to populate dashboard. Failure is
+        non-blocking - location is created even if weather fetch fails.
+        """
         location = serializer.save(added_by_user=self.request.user)
         if location.latitude and location.longitude:
             try:
@@ -93,6 +98,11 @@ class WeatherByLocation(APIView):
     permission_classes = [IsAuthenticated]
 
     def get(self, request, location_id):
+        """Get weather data for location with optional hours parameter.
+        
+        Uses short cache (30s) for near-real-time updates. Defaults to 24h
+        if invalid hours parameter provided.
+        """
         location = get_object_or_404(Location, id=location_id, added_by_user=request.user)
         try:
             hours = int(request.query_params.get('hours', DEFAULT_WEATHER_HOURS))
@@ -317,6 +327,12 @@ class DashboardView(LoginRequiredMixin, View):
         })
 
     def _status_for(self, loc, latest):
+        """Determine status badge for location card.
+        
+        Checks user-configured alerts first, then applies default warning
+        thresholds (temp < 5°C, wind > 8 m/s). Returns 'alert', 'warning',
+        'normal', or 'no data'.
+        """
         if not latest:
             return 'no data'
         
