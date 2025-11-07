@@ -7,8 +7,8 @@ load_dotenv()
 
 BASE_DIR = Path(__file__).resolve().parent.parent
 
-SECRET_KEY = os.getenv("SECRET_KEY","dev_only")
-DEBUG = os.getenv("DEBUG","True") == "True"
+SECRET_KEY = os.getenv("SECRET_KEY", "dev_only")
+DEBUG = os.getenv("DEBUG", "True") == "True"
 
 ALLOWED_HOSTS = os.getenv("ALLOWED_HOSTS", "").split(",") if os.getenv("ALLOWED_HOSTS") else []
 
@@ -62,8 +62,8 @@ DATABASES = {
         'NAME': os.getenv("POSTGRES_DB"),
         'USER': os.getenv("POSTGRES_USER"),
         'PASSWORD': os.getenv("POSTGRES_PASSWORD"),
-        'HOST': os.getenv("POSTGRES_HOST","localhost"),
-        'PORT': os.getenv("POSTGRES_PORT","5432"),
+        "HOST": os.getenv("POSTGRES_HOST", "localhost"),
+        "PORT": os.getenv("POSTGRES_PORT", "5432"),
     }
 }
 
@@ -90,25 +90,26 @@ USE_I18N = True
 
 USE_TZ = True
 
-REST_FRAMEWORK = { "DEFAULT_AUTHENTICATION_CLASSES": (
-    "rest_framework_simplejwt.authentication.JWTAuthentication",
-    'rest_framework.authentication.SessionAuthentication',
-),
-    "DEFAULT_PERMISSION_CLASSES": ( "rest_framework.permissions.IsAuthenticated", ),
-    'DEFAULT_SCHEMA_CLASS': 'drf_spectacular.openapi.AutoSchema',
-    'DEFAULT_THROTTLE_CLASSES':[
-        'rest_framework.throttling.UserRateThrottle',
-        'rest_framework.throttling.AnonRateThrottle',
+REST_FRAMEWORK = {
+    "DEFAULT_AUTHENTICATION_CLASSES": (
+        "rest_framework_simplejwt.authentication.JWTAuthentication",
+        "rest_framework.authentication.SessionAuthentication",
+    ),
+    "DEFAULT_PERMISSION_CLASSES": ("rest_framework.permissions.IsAuthenticated",),
+    "DEFAULT_SCHEMA_CLASS": "drf_spectacular.openapi.AutoSchema",
+    "DEFAULT_THROTTLE_CLASSES": [
+        "rest_framework.throttling.UserRateThrottle",
+        "rest_framework.throttling.AnonRateThrottle",
     ],
-    'DEFAULT_THROTTLE_RATES':{
-        'user': '120/min',
-        'anon': '60/min',
+    "DEFAULT_THROTTLE_RATES": {
+        "user": "120/min",
+        "anon": "60/min",
     },
 }
 
-OWM_API_KEY = os.getenv("OWM_API_KEY","")
-CELERY_BROKER_URL = os.getenv('CELERY_BROKER_URL','redis://localhost:6379/0')
-CELERY_RESULT_BACKEND = os.getenv('CELERY_RESULT_BACKEND','redis://localhost:6379/1')
+OWM_API_KEY = os.getenv("OWM_API_KEY", "")
+CELERY_BROKER_URL = os.getenv("CELERY_BROKER_URL", "redis://localhost:6379/0")
+CELERY_RESULT_BACKEND = os.getenv("CELERY_RESULT_BACKEND", "redis://localhost:6379/1")
 
 CELERY_BEAT_SCHEDULE = {
     'fetch_weather_30min': {
