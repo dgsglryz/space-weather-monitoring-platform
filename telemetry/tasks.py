@@ -7,8 +7,12 @@ from django.core.mail import send_mail
 from asgiref.sync import async_to_sync
 from channels.layers import get_channel_layer
 import logging
+import time
 
 logger = logging.getLogger(__name__)
+
+# Rate limiting: sleep between API calls to avoid hitting rate limits
+API_RATE_LIMIT_DELAY_SECONDS = 1.1
 
 
 @shared_task

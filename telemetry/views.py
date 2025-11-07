@@ -21,6 +21,12 @@ import logging
 
 logger = logging.getLogger(__name__)
 
+# Constants for default values and thresholds
+DEFAULT_WEATHER_HOURS = 24
+CACHE_TIMEOUT_SECONDS = 30
+TEMPERATURE_WARNING_THRESHOLD = 5  # Celsius
+WIND_SPEED_WARNING_THRESHOLD = 8  # m/s
+
 
 def build_telemetry_series(telemetry_queryset):
     """Build series data from telemetry queryset for chart rendering.
@@ -89,9 +95,9 @@ class WeatherByLocation(APIView):
     def get(self, request, location_id):
         location = get_object_or_404(Location, id=location_id, added_by_user=request.user)
         try:
-            hours = int(request.query_params.get('hours',24))
+            hours = int(request.query_params.get('hours', DEFAULT_WEATHER_HOURS))
         except ValueError:
-            hours = 24
+            hours = DEFAULT_WEATHER_HOURS
 
         cache_key = f'weather:{request.user.id}:{location_id}:{hours}'
         cached = cache.get(cache_key)
@@ -120,7 +126,7 @@ class WeatherByLocation(APIView):
             'series': series
         }
 
-        cache.set(cache_key, response_data, timeout=30)
+        cache.set(cache_key, response_data, timeout=CACHE_TIMEOUT_SECONDS)
 
         return Response(response_data)
 
@@ -338,9 +344,9 @@ class DashboardView(LoginRequiredMixin, View):
             if op == 'lt' and val < cfg.threshold_value:
                 return 'alert'
         
-        if latest.temperature_c is not None and latest.temperature_c < 5:
+        if latest.temperature_c is not None and latest.temperature_c < TEMPERATURE_WARNING_THRESHOLD:
             return 'warning'
-        if latest.wind_speed_ms is not None and latest.wind_speed_ms > 8:
+        if latest.wind_speed_ms is not None and latest.wind_speed_ms > WIND_SPEED_WARNING_THRESHOLD:
             return 'warning'
             
         return 'normal'
