@@ -1,0 +1,102 @@
+name: CI
+
+on:
+  push:
+    branches: ["delivery"]
+  pull_request:
+    branches: ["delivery"]
+
+env:
+  PYTHONDONTWRITEBYTECODE: "1"
+  PYTHONUNBUFFERED: "1"
+
+jobs:
+  quality-and-tests:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:15
+        env:
+          POSTGRES_DB: weather_ci
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -d weather_ci -U postgres"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+      redis:
+        image: redis:7-alpine
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+    env:
+      POSTGRES_DB: weather_ci
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_HOST: localhost
+      POSTGRES_PORT: 5432
+      SECRET_KEY: github-ci-secret
+      DEBUG: "False"
+      DJANGO_ENV: ci
+      ALLOWED_HOSTS: "localhost,127.0.0.1"
+      CELERY_BROKER_URL: redis://localhost:6379/0
+      CELERY_RESULT_BACKEND: redis://localhost:6379/1
+      CACHE_URL: redis://localhost:6379/2
+      REDIS_HOST: localhost
+      REDIS_PORT: 6379
+      OWM_API_KEY: test-key
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: "pip"
+
+      - name: Install system dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install --no-install-recommends -y libpq-dev
+
+      - name: Install Python dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+
+      - name: Wait for PostgreSQL
+        run: |
+          for i in {1..20}; do
+            if pg_isready --host=localhost --port=5432 --username="$POSTGRES_USER"; then
+              break
+            fi
+            echo "PostgreSQL is unavailable - sleeping"
+            sleep 3
+          done
+
+      - name: Check for pending migrations
+        env:
+          DJANGO_SETTINGS_MODULE: core.settings
+        run: python manage.py makemigrations --check --dry-run
+
+      - name: Run Django system checks
+        env:
+          DJANGO_SETTINGS_MODULE: core.settings
+        run: |
+          python manage.py migrate --noinput
+          python manage.py check
+          python manage.py collectstatic --noinput
+
+      - name: Run unit tests
+        env:
+          DJANGO_SETTINGS_MODULE: core.test_settings
+        run: python manage.py test telemetry
+

@@ -1,0 +1,154 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>{% block title %}Telemetry Dashboard{% endblock %}</title>
+    <script src="https://cdn.plot.ly/plotly-2.35.2.min.js"></script>
+    <style>
+      body {
+        font-family: system-ui, -apple-system, Segoe UI, Roboto, sans-serif;
+        margin: 0;
+        padding: 16px;
+        background: #f8f9fa;
+        line-height: 1.5;
+      }
+      .dashboard-controls {
+        gap: 12px;
+        flex-wrap: wrap;
+        align-items: center;
+      }
+      .status-group {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        margin-left: auto;
+      }
+      h1,
+      h2 {
+        margin: 0 0 16px 0;
+        font-size: 24px;
+        font-weight: 600;
+      }
+      .row {
+        display: flex;
+        gap: 12px;
+        align-items: center;
+        flex-wrap: wrap;
+      }
+      .card {
+        padding: 16px;
+        border: 1px solid #e0e0e0;
+        border-radius: 12px;
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
+        background: #fff;
+        margin-bottom: 16px;
+      }
+      .muted {
+        color: #666;
+        font-size: 12px;
+      }
+      .btn {
+        padding: 8px 12px;
+        border-radius: 8px;
+        border: 1px solid #ddd;
+        background: #fff;
+        cursor: pointer;
+      }
+      .btn:hover {
+        background: #f6f6f6;
+      }
+      select,
+      input {
+        padding: 6px 8px;
+        border-radius: 8px;
+        border: 1px solid #ddd;
+      }
+      .badge {
+        padding: 2px 8px;
+        border-radius: 999px;
+        font-size: 12px;
+      }
+      .ok {
+        background: #e7f7ef;
+        color: #116b3a;
+        border: 1px solid #bde7d0;
+      }
+      .warn {
+        background: #fde7e7;
+        color: #8b1a1a;
+        border: 1px solid #f7c4c4;
+      }
+      @media (max-width: 768px) {
+        body {
+          padding: 8px;
+        }
+        h1, h2 {
+          font-size: 20px;
+        }
+        .card {
+          padding: 12px;
+        }
+        .row {
+          flex-direction: column;
+          align-items: stretch;
+        }
+        .btn {
+          width: 100%;
+          text-align: center;
+          margin-bottom: 8px;
+        }
+        select,
+        input {
+          width: 100%;
+        }
+      }
+      @media (max-width: 480px) {
+        body {
+          padding: 4px;
+        }
+        .card {
+          padding: 8px;
+        }
+      }
+      @media (max-width: 600px) {
+        .dashboard-controls {
+          align-items: stretch;
+        }
+        .dashboard-controls > label,
+        .dashboard-controls > div,
+        .dashboard-controls button {
+          width: 100%;
+        }
+        .status-group {
+          margin-left: 0;
+          justify-content: space-between;
+          width: 100%;
+        }
+        .status-group .badge {
+          margin-left: 8px;
+        }
+      }
+    </style>
+    {% block head %}{% endblock %}
+  </head>
+  <body>
+    <div
+      class="row"
+      style="
+        margin-bottom: 20px;
+        padding: 12px;
+        background: #fff;
+        border-radius: 12px;
+        border: 1px solid #e0e0e0;
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
+      "
+    >
+      <a href="/dashboard/" class="btn" style="padding: 8px 16px; text-decoration: none">Dashboard</a>
+      <a href="/locations-page/" class="btn" style="padding: 8px 16px; text-decoration: none">Locations</a>
+      <a href="/alerts-config/" class="btn" style="padding: 8px 16px; text-decoration: none">Alerts Config</a>
+      <a href="/alerts-history/" class="btn" style="padding: 8px 16px; text-decoration: none">Alerts History</a>
+    </div>
+    {% block body %}{% endblock %}
+  </body>
+</html>
