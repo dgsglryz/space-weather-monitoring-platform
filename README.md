@@ -157,6 +157,7 @@ Test settings swap PostgreSQL/Redis for in-memory backends and run Celery eagerl
 - `telemetry/tasks.py` — Celery ingest and alert orchestration
 - `telemetry/tests.py` — smoke tests covering API, tasks, and templates
 - `env.example` — authoritative list of configuration variables
+- GitHub Actions pipeline (`.github/workflows/ci.yml`) runs quality checks and tests on every push to `main`
 
 ---
 
