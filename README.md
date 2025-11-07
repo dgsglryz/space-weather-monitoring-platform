@@ -1,134 +1,60 @@
 # Space Weather Monitoring Platform
 
-Mission-ready weather intelligence for satellite ground stations. The platform ingests conditions from OpenWeatherMap, evaluates operator-defined thresholds, and surfaces status through a server-rendered dashboard, authenticated REST API, and optional email/WebSocket alerts.
+Production-ready weather monitoring and alerting for satellite ground stations. It fetches OpenWeatherMap data, stores telemetry, evaluates thresholds, and surfaces status through a server-rendered dashboard, JWT-secured REST API, live WebSockets, and email alerts.
 
----
+- Repo: https://github.com/dgsglryz/space-weather-monitoring-platform
+- Diagram: `docs/architecture.png` (Mermaid source: `docs/architecture.mmd`)
+- Local demo: username `demo`, password `1234`
 
-## Repository & Contacts
+## Features
 
-- GitHub (private): https://github.com/dgsglryz/space-weather-monitoring-platform
-- Delivery branch: `delivery`
-- Reviewer access: add `perceptivespace` as collaborator on request
-- Questions / submission email: hiring@perceptivespace.com
+- Django 4.2 + DRF backend (SSR, JWT auth, OpenAPI at `/api/docs/`)
+- PostgreSQL tables for locations, telemetry, alert configs, alert history
+- Celery beat + worker run 30-minute ingests with retry/backoff email alerts
+- Channels WebSocket pushes live readings to dashboards
+- Plotly SSR dashboard with 24-hour charts and history metrics
+- Docker Compose stack: Daphne web, worker, beat, PostgreSQL, Redis
 
----
+## Setup
 
-## Demo Access
-
-- URL: https://space-weather-monitoring-demo.fly.dev
-- Credentials: `demo@example.com` / `SolarStorm42!`
-- Seeded data: Cape Canaveral, Vandenberg SFB, Baikonur with recent telemetry and alert history
-- Admin login (optional): request via email, or create locally with `createsuperuser`
-
-> Submission checklist reminder:
->
-> 1. Share deployed URL and credentials above
-> 2. Include private GitHub link
-> 3. Document setup notes (env vars, external services)
-> 4. State time spent (see **Time & Next Steps**)
-
----
-
-## Architecture & Key Features
-
-- Django 4.2 + Django REST Framework powering SSR views and JWT-secured API
-- PostgreSQL schema covering users, locations, telemetry, alert configs, and alert history (unique `(location, timestamp)` guard)
-- Celery beat + worker pair fetching OpenWeatherMap every 30 minutes and evaluating thresholds
-- Redis shared for Celery broker/result, caching weather responses, and Channels WebSocket layer
-- Plotly-powered dashboard chart visualising the last 24 hours (auto-refresh + WebSocket push)
-- OpenAPI documentation available at `/api/docs/`
-- Architecture diagram & Mermaid source: `docs/architecture.png` / `docs/architecture.mmd`
-
----
-
-## Requirement Coverage Snapshot
-
-- ✅ REST endpoints: `/api/locations/`, `/api/weather/<id>/`, `/api/alerts/config/`, `/api/alerts/history/`, JWT auth endpoints (`/api/auth/token/`, `/api/auth/token/refresh/`)
-- ✅ Background ingest: Celery beat (`fetch_and_store_weather`) schedules fan-out jobs that persist telemetry and trigger alerts
-- ✅ Frontend templates: dashboard, locations CRUD, historical view, alert configuration, alert history
-- ✅ Data visualisation: Plotly chart on dashboard and historical pages (24h trend)
-- ✅ Deployment: Dockerfile + `docker-compose.yml` (web, worker, beat, PostgreSQL, Redis)
-- ✅ Documentation: this README + `.env.example` + architecture assets
-
----
-
-## Local Development (Python 3.11)
+### Local Development
 
 ```bash
-cp env.example .env                     # populate secrets before running
+cp env.example .env
 python -m venv .venv && source .venv/bin/activate
 pip install -r requirements.txt
 python manage.py migrate
-python manage.py createsuperuser        # optional, for admin login
-python manage.py runserver 0.0.0.0:8000 # web server
+python manage.py runserver
 
 # in parallel terminals
 celery -A core worker -l info
 celery -A core beat -l info
 ```
 
-- Default admin: `/admin/`
-- Swagger/OpenAPI: `/api/docs/`
-- WebSocket endpoint: `ws://localhost:8000/ws/updates/`
+- Admin UI: `/admin/`
+- WebSocket feed: `ws://localhost:8000/ws/updates/`
 
-To seed sample telemetry locally run `python manage.py shell` and create locations; Celery beat will backfill on the next cycle.
-
----
-
-## Docker Compose (local demo)
+### Docker
 
 ```bash
 cp env.example .env
 docker compose up --build
-# or `docker compose up --build -d` to detach
 ```
-
-Services: `web` (Daphne ASGI), `worker`, `beat`, `db` (PostgreSQL 15), `redis`. Static assets collected automatically. Stop with `docker compose down`.
-
----
-
-## Environment Variables
-
-All variables are documented in `.env.example`; copy to `.env` and adjust for your environment.
-
-| Category        | Keys                                                                                                                                                                                                                                                        |
-| --------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Django          | `SECRET_KEY`, `DEBUG`, `DJANGO_ENV`, `ALLOWED_HOSTS`                                                                                                                                                                                                        |
-| Database        | `POSTGRES_DB`, `POSTGRES_USER`, `POSTGRES_PASSWORD`, `POSTGRES_HOST`, `POSTGRES_PORT`                                                                                                                                                                       |
-| Celery & Cache  | `CELERY_BROKER_URL`, `CELERY_RESULT_BACKEND`, `CACHE_URL`, `REDIS_HOST`, `REDIS_PORT`                                                                                                                                                                       |
-| External APIs   | `OWM_API_KEY`                                                                                                                                                                                                                                               |
-| Email           | `EMAIL_BACKEND`, `EMAIL_HOST`, `EMAIL_PORT`, `EMAIL_USE_TLS`, `EMAIL_USE_SSL`, `EMAIL_HOST_USER`, `EMAIL_HOST_PASSWORD`, `DEFAULT_FROM_EMAIL`, `ALERT_NOTIFICATION_EMAIL`, `EMAIL_TIMEOUT`, `ALERT_EMAIL_MAX_ATTEMPTS`, `ALERT_EMAIL_RETRY_BACKOFF_SECONDS` |
-| UI/Cache tuning | `WEATHER_CACHE_SECONDS`, `DASHBOARD_REFRESH_MAX_AGE_SECONDS`, `DASHBOARD_REFRESH_COOLDOWN_SECONDS`                                                                                                                                                          |
-
----
 
 ## API Reference
 
-- `POST /api/auth/token/` → `{"username": "demo@example.com", "password": "SolarStorm42!"}` → returns access/refresh tokens
-- `GET /api/locations/` → list locations owned by user
-- `POST /api/locations/` → create location by city or coordinates (auto-geocodes when coordinates omitted)
-  ```json
-  {
-    "name": "Toronto",
-    "latitude": 43.65,
-    "longitude": -79.38
-  }
-  ```
-- `GET /api/weather/<location_id>/?hours=24` → latest measurement + history series
-- `POST /api/alerts/config/` →
-  ```json
-  {
-    "location": 1,
-    "threshold_type": "wind_gt",
-    "threshold_value": 12.5,
-    "is_active": true
-  }
-  ```
-- `GET /api/alerts/history/` → recent alert events (user-scoped)
+- `POST /api/auth/token/` → obtain JWT tokens
+- `GET /api/locations/`
+- `POST /api/locations/`
+- `GET /api/weather/<id>/?hours=24`
+- `POST /api/alerts/config/`
+- `GET /api/alerts/history/`
 
-All endpoints require authentication (session or JWT). Full schema published at `/api/schema/` and `/api/docs/`.
+Complete schema available at `/api/docs/`.
 
----
+## Environment Variables
+
+All variables live in `.env.example`: Django runtime, PostgreSQL, Redis/Celery URLs, `OWM_API_KEY`, SMTP credentials, and cache tuning knobs.
 
 ## Testing
 
@@ -136,46 +62,20 @@ All endpoints require authentication (session or JWT). Full schema published at 
 python manage.py test --settings=core.test_settings
 ```
 
-Test settings swap PostgreSQL/Redis for in-memory backends and run Celery eagerly.
+Uses in-memory database/cache and Celery eager mode.
 
----
+## Design Decisions (under 500 words)
 
-## Design Decisions (≈320 words)
+- **Database.** PostgreSQL keeps telemetry, locations, alerts, and histories consistent, with `(location, timestamp)` uniqueness and targeted indexes. Scaling to 1,000+ locations would lean on partitioning plus read replicas.
+- **Caching & rate limits.** Fetch cadence matches OpenWeatherMap’s free tier. Redis caches per-user/location windows and also backs Celery broker/result plus the WebSocket layer, so dashboards refresh without extra API calls.
+- **Background jobs.** Celery supplies scheduling and retries. Each ingest writes telemetry, evaluates thresholds, stores alert history, and sends email with configurable retry/backoff.
+- **SSR & UX.** Django templates keep pages lightweight. Plotly renders interactive 24-hour charts, while WebSockets stream live deltas. The history page adds min/max/avg summaries and last-updated timestamps.
+- **Scalability.** Additional Celery workers, Redis queues, and indexed tables handle growth; Docker Compose mirrors production deployment, easing moves to managed infrastructure.
 
-**Database model & scale:** PostgreSQL was chosen for relational integrity, with explicit foreign keys tying telemetry to users and locations. A unique constraint on `(location_id, timestamp)` prevents duplicate ingest, while selective indexes keep dashboard queries (latest measurement per site) efficient. At 1,000+ locations, partitioning by day or location plus read replicas would sustain ingest while keeping alert lookups fast.
+## Time Spent
 
-**Caching & rate limits:** OpenWeatherMap’s free tier limits calls per minute, so Celery beat schedules a single `fetch_and_store_weather` task every 30 minutes, which then fans out using `apply_async` with a small stagger (`API_RATE_LIMIT_DELAY_SECONDS`). Weather API responses are cached per user/location/hour window via Redis, ensuring dashboard refreshes stay instantaneous without re-hitting the external API.
-
-**Background execution:** Celery was favoured over cron so we could maintain retry logic, structured logging, and share Redis with Channels. Alerts are computed in the worker immediately after writing a telemetry point, guaranteeing consistent state before notifying operators. Email retries honour configurable attempt/backoff settings.
-
-**Realtime UX:** Channels + WebSockets broadcast `weather_update` events to authenticated users, prompting client-side refresh and keeping dashboards in sync. Plotly handles interactive overlays for temperature, wind, and humidity; SSR pages keep the bundle lightweight for constrained network environments while still delivering rich interactions.
-
----
-
-## Documentation & Assets
-
-- `docs/architecture.mmd` / `docs/architecture.png` — system topology & data flow
-- `telemetry/tasks.py` — Celery ingest and alert orchestration
-- `telemetry/tests.py` — smoke tests covering API, tasks, and templates
-- `env.example` — authoritative list of configuration variables
-- GitHub Actions pipeline (`.github/workflows/ci.yml`) runs quality checks and tests on every push to `main`
-
----
-
-## Time & Next Steps
-
-- Time spent: ~10 hours core build (models, API, Celery, SSR), ~5 hours polish (UI states, docs, deployment)
-- If more time: add per-user notification preferences, historical rollups, and automated browser tests
-
-When submitting, email `hiring@perceptivespace.com` with:
-
-1. GitHub repository link (private)
-2. Deployed demo URL
-3. Credentials and setup caveats (env vars, external services)
-4. Actual time spent & known follow-up work
-
----
+Approximately 14 hours end-to-end (core build, ingestion, alerting, deployment polish, docs).
 
 ## AI Disclosure
 
-I used Cursor for linting hints and GitHub Copilot CLI for shell scaffolding. Algorithm design, data modeling, Celery orchestration, and documentation were written manually, with final review done without AI assistance.
+Received light support from Cursor (ChatGPT-based) for polishing documentation phrasing, brainstorming test scenarios, and tightening inline comments. Architecture, application code, Celery/Redis integration, and final verification were handled directly by me.
