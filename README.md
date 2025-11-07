@@ -1,6 +1,6 @@
 # Space Weather Monitoring Platform
 
-Production-ready weather monitoring and alerting for satellite ground stations. It fetches OpenWeatherMap data, stores telemetry, evaluates thresholds, and surfaces status through a server-rendered dashboard, JWT-secured REST API, live WebSockets, and email alerts.
+Production-ready weather monitoring for satellite ground stations. Fetches OpenWeatherMap data, stores telemetry, evaluates thresholds, and surfaces results via SSR dashboard, JWT API, WebSockets, and email alerts.
 
 - Repo: https://github.com/dgsglryz/space-weather-monitoring-platform
 - Diagram: `docs/architecture.png` (Mermaid source: `docs/architecture.mmd`)
@@ -10,11 +10,11 @@ Production-ready weather monitoring and alerting for satellite ground stations. 
 
 ## Features
 
-- Django 4.2 + DRF backend (SSR, JWT auth, OpenAPI at `/api/docs/`)
-- PostgreSQL tables for locations, telemetry, alert configs, alert history
-- Celery beat + worker run 30-minute ingests with retry/backoff email alerts
+- Django 4.2 + DRF backend (SSR + JWT; OpenAPI at `/api/docs/`)
+- PostgreSQL models for locations, telemetry, alert configs, alert history
+- Celery beat/worker ingest every 30 minutes with email retry/backoff
 - Channels WebSocket pushes live readings to dashboards
-- Plotly SSR dashboard with 24-hour charts and history metrics
+- Plotly renders 24-hour charts and history metrics
 - Docker Compose stack: Daphne web, worker, beat, PostgreSQL, Redis
 
 ## Setup
@@ -45,14 +45,72 @@ docker compose up --build
 
 ## API Reference
 
-- `POST /api/auth/token/` → obtain JWT tokens
+- `POST /api/auth/token/`
+  ```json
+  { "username": "demo@example.com", "password": "1234" }
+  ```
+  Response →
+  ```json
+  { "access": "<jwt>", "refresh": "<jwt>" }
+  ```
 - `GET /api/locations/`
+  ```json
+  [
+    {
+      "id": 1,
+      "name": "Cape Canaveral",
+      "latitude": 28.396837,
+      "longitude": -80.605659
+    }
+  ]
+  ```
 - `POST /api/locations/`
+  ```json
+  { "name": "Toronto", "latitude": 43.65, "longitude": -79.38 }
+  ```
 - `GET /api/weather/<id>/?hours=24`
+  ```json
+  {
+    "location": 1,
+    "latest": {
+      "timestamp": "2025-11-07T17:30:00Z",
+      "temperature_c": 22.1,
+      "wind_speed_ms": 5.4,
+      "humidity": 68
+    },
+    "series": [
+      {
+        "timestamp": "2025-11-07T16:30:00Z",
+        "temperature_c": 21.4,
+        "wind_speed_ms": 4.8,
+        "humidity": 70
+      }
+    ]
+  }
+  ```
 - `POST /api/alerts/config/`
+  ```json
+  {
+    "location": 1,
+    "threshold_type": "temp_gt",
+    "threshold_value": 30,
+    "is_active": true
+  }
+  ```
 - `GET /api/alerts/history/`
+  ```json
+  [
+    {
+      "location": 1,
+      "condition": "temp_gt",
+      "value": 34.2,
+      "triggered_at": "2025-11-07T16:30:00Z",
+      "user_notified": true
+    }
+  ]
+  ```
 
-Complete schema available at `/api/docs/`.
+Full schema: `/api/docs/`.
 
 ## Environment Variables
 
