@@ -276,6 +276,7 @@ CREATE INDEX telemetry_time_idx ON telemetry_telemetry (location_id, timestamp D
 - Landing view shows all locations as status cards (`alert`, `warning`, `normal`, `no data`).
 - Plotly chart renders 24h temperature/wind trend for the selected station.
 - Location page supports manual coordinate entry + geocoding cache (OpenWeatherMap geocoder).
+- Historical view shows quick min/max/avg stats per metric.
 - Alerts configuration toggles active state and threshold without leaving the page.
 - Dashboard surfaces an SMTP health ribbon when recent alerts fail to reach users.
 
