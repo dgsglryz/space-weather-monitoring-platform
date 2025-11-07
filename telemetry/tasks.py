@@ -6,8 +6,10 @@ from .owm_client import fetch_current_by_coords
 from django.core.mail import send_mail
 from asgiref.sync import async_to_sync
 from channels.layers import get_channel_layer
+from django.db import DatabaseError, IntegrityError
 import logging
 import time
+import requests
 
 logger = logging.getLogger(__name__)
 
@@ -23,6 +25,10 @@ def fetch_and_store_weather():
     locations = Location.objects.filter(latitude__isnull=False, longitude__isnull=False)
     
     for idx, loc in enumerate(locations):
+        # Apply rate limiting between API calls to respect provider quotas
+        if idx > 0:
+            time.sleep(API_RATE_LIMIT_DELAY_SECONDS)
+        
         try:
             data = fetch_current_by_coords(loc.latitude, loc.longitude)
             
@@ -43,8 +49,11 @@ def fetch_and_store_weather():
             
             if created:
                 evaluate_alerts(loc, measurement)
-        except Exception as e:
-            logger.warning(f"Failed to fetch/store weather for location {loc.id} ({loc.name}): {e}")
+        except (requests.RequestException, RuntimeError, ValueError, TypeError) as e:
+            logger.warning(f"Failed to fetch weather data for location {loc.id} ({loc.name}): {e}")
+            continue
+        except (DatabaseError, IntegrityError) as e:
+            logger.error(f"Database error while storing weather for location {loc.id} ({loc.name}): {e}")
             continue
 
 
@@ -86,11 +95,16 @@ def evaluate_alerts(location, measurement):
                 user_notified=False
             )
             
+            # Note: Previously with fail_silently=True, send_mail would not raise
+            # and user_notified was always set to True. To preserve behavior,
+            # we catch exceptions and still mark as notified (but log failures).
             try:
                 send_alert_email(cfg, location, val)
+                # Preserve old behavior: mark as notified if no exception raised
                 alert_history.user_notified = True
                 alert_history.save(update_fields=['user_notified'])
             except Exception as e:
+                # Only log if exception occurs; don't mark as notified in this case
                 logger.error(f"Failed to send alert email to {cfg.user.username} for location {location.name}: {e}")
 
         _publish_update(cfg.user.id, {
@@ -104,7 +118,17 @@ def evaluate_alerts(location, measurement):
         })
 
 
-def send_alert_email(cfg,location, val):
+def send_alert_email(cfg, location, val):
+    """Send alert email to user.
+    
+    Does not raise exceptions (preserves old fail_silently=True behavior).
+    Logs failures for observability. Returns None for compatibility.
+    """
+    to = [cfg.user.email] if getattr(cfg.user, 'email', None) else []
+    if not to:
+        logger.debug(f"No email address for user {cfg.user.username}, skipping alert email")
+        return
+    
     subject = f'[Weather Alert] {location.name} - {cfg.threshold_type} = {val}'
     body = (
         f'Location: {location.name}\n'
@@ -112,10 +136,16 @@ def send_alert_email(cfg,location, val):
         f'Value: {val}\n'
         f'Threshold: {cfg.threshold_value}\n'
     )
-
-    to = [cfg.user.email] if getattr(cfg.user,'email',None) else []
-    if to:
-        send_mail(subject, body, None,to, fail_silently=True)
+    
+    try:
+        sent_count = send_mail(subject, body, None, to, fail_silently=False)
+        if sent_count == 0:
+            logger.warning(f"send_mail returned 0 for alert email to {cfg.user.username} at {location.name}")
+        else:
+            logger.debug(f"Alert email sent successfully to {cfg.user.username} for {location.name}")
+    except Exception as e:
+        # Log failure but don't raise (preserves old fail_silently=True behavior)
+        logger.error(f"Failed to send alert email to {cfg.user.username} for location {location.name}: {e}")
 
 def _publish_update(user_id, payload):
     """Publish WebSocket update for real-time UI refresh.
@@ -131,5 +161,7 @@ def _publish_update(user_id, payload):
                 'data': payload
             }
         )
+    except (ConnectionError, RuntimeError, AttributeError) as e:
+        logger.warning(f"WebSocket publish failed for user {user_id}: {e}")
     except Exception as e:
         logger.debug(f"WebSocket publish failed for user {user_id}: {e}")
