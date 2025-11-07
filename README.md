@@ -109,6 +109,7 @@ graph TB
 
 ```bash
 cp env.example .env
+# Update .env with your SMTP credentials (see Gmail note below)
 python -m venv .venv && source .venv/bin/activate
 pip install -r requirements.txt
 python manage.py migrate
@@ -395,7 +396,7 @@ Production readiness checklist covers health endpoints (`/healthz` custom view a
 
 ## 🤖 AI Assistance Disclosure
 
-- Tools: Cursor Copilot (lint suggestions), GitHub Copilot CLI (test command stubs).
+- Tools: Cursor (lint suggestions), GitHub Copilot CLI (test command stubs).
 - Usage: verifying `ruff`/`pytest` invocations and rephrasing two doc sentences.
 - Architecture, data modeling, alert logic, and documentation structure were crafted manually.
 
