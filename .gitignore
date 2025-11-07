@@ -20,4 +20,4 @@ celerybeat-schedule.db
 .idea/
 *.swp
 *.swo
-*~
+*~*.md
