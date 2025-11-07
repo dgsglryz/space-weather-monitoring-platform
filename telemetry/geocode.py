@@ -3,6 +3,9 @@ import requests
 import time
 from django.conf import settings
 from .models import GeocodeCache
+import logging
+
+logger = logging.getLogger(__name__)
 
 
 def _normalize(city):
@@ -83,8 +86,8 @@ def geocode_city(city, sleep_seconds=0.0):
             if sleep_seconds > 0:
                 time.sleep(sleep_seconds)
             return coords
-    except Exception:
-        pass
+    except Exception as e:
+        logger.debug(f"OWM geocoding provider failed for '{city_norm}': {e}")
 
     try:
         coords = _provider_openmeteo(city_norm)
@@ -93,8 +96,8 @@ def geocode_city(city, sleep_seconds=0.0):
             if sleep_seconds > 0:
                 time.sleep(sleep_seconds)
             return coords
-    except Exception:
-        pass
+    except Exception as e:
+        logger.debug(f"OpenMeteo geocoding provider failed for '{city_norm}': {e}")
 
     if sleep_seconds > 0:
         time.sleep(sleep_seconds)

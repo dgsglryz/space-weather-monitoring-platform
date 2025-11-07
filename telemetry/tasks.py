@@ -6,6 +6,9 @@ from .owm_client import fetch_current_by_coords
 from django.core.mail import send_mail
 from asgiref.sync import async_to_sync
 from channels.layers import get_channel_layer
+import logging
+
+logger = logging.getLogger(__name__)
 
 
 @shared_task
@@ -36,7 +39,8 @@ def fetch_and_store_weather():
             
             if created:
                 evaluate_alerts(loc, measurement)
-        except Exception:
+        except Exception as e:
+            logger.warning(f"Failed to fetch/store weather for location {loc.id} ({loc.name}): {e}")
             continue
 
 
@@ -76,8 +80,8 @@ def evaluate_alerts(location, measurement):
                 send_alert_email(cfg, location, val)
                 alert_history.user_notified = True
                 alert_history.save(update_fields=['user_notified'])
-            except Exception:
-                pass
+            except Exception as e:
+                logger.error(f"Failed to send alert email to {cfg.user.username} for location {location.name}: {e}")
 
         _publish_update(cfg.user.id, {
             'location': location.id,
@@ -104,6 +108,10 @@ def send_alert_email(cfg,location, val):
         send_mail(subject, body, None,to, fail_silently=True)
 
 def _publish_update(user_id, payload):
+    """Publish WebSocket update for real-time UI refresh.
+    
+    Non-critical operation; failures are logged but don't affect main flow.
+    """
     try:
         layer = get_channel_layer()
         async_to_sync(layer.group_send)(
@@ -113,5 +121,5 @@ def _publish_update(user_id, payload):
                 'data': payload
             }
         )
-    except Exception:
-        pass
+    except Exception as e:
+        logger.debug(f"WebSocket publish failed for user {user_id}: {e}")
