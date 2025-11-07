@@ -3,10 +3,8 @@
 Production-ready weather monitoring for satellite ground stations. Fetches OpenWeatherMap data, stores telemetry, evaluates thresholds, and surfaces results via SSR dashboard, JWT API, WebSockets, and email alerts.
 
 - Repo: https://github.com/dgsglryz/space-weather-monitoring-platform
-- Diagram: `docs/architecture.png` (Mermaid source: `docs/architecture.mmd`)
+- Diagram: view the Mermaid source directly at `docs/architecture.mmd`
 - Local demo: username `demo`, password `1234`
-
-![System architecture](docs/architecture.png)
 
 ## Features
 
@@ -14,7 +12,7 @@ Production-ready weather monitoring for satellite ground stations. Fetches OpenW
 - PostgreSQL models for locations, telemetry, alert configs, alert history
 - Celery beat/worker ingest every 30 minutes with email retry/backoff
 - Channels WebSocket pushes live readings to dashboards
-- Plotly renders 24-hour charts and history metrics
+- Plotly renders 24-hour charts and history metrics; historical drill-down adds min/max/avg summaries per location
 - Docker Compose stack: Daphne web, worker, beat, PostgreSQL, Redis
 
 ## Setup
@@ -33,6 +31,10 @@ celery -A core worker -l info
 celery -A core beat -l info
 ```
 
+- Vars: `.env.example` ships with working defaults (PostgreSQL db/user/password all `space`, Redis URLs, console email backend). Set `OWM_API_KEY` if you want live weather ingestion.
+- Alert emails: switch `EMAIL_BACKEND` to the SMTP backend and fill `EMAIL_HOST` (e.g. `smtp.gmail.com`), `EMAIL_HOST_USER`, `EMAIL_HOST_PASSWORD` (plus TLS/SSL flags) if you want outbound alerts instead of console logs.
+- Docker compose uses the same `.env`; update secrets there before deploying beyond local.
+
 - Admin UI: `/admin/`
 - WebSocket feed: `ws://localhost:8000/ws/updates/`
 
@@ -47,7 +49,7 @@ docker compose up --build
 
 - `POST /api/auth/token/`
   ```json
-  { "username": "demo@example.com", "password": "1234" }
+  { "username": "demo", "password": "1234" }
   ```
   Response →
   ```json
@@ -131,10 +133,6 @@ Uses in-memory database/cache and Celery eager mode.
 - **Background jobs.** Celery supplies scheduling and retries. Each ingest writes telemetry, evaluates thresholds, stores alert history, and sends email with configurable retry/backoff.
 - **SSR & UX.** Django templates keep pages lightweight. Plotly renders interactive 24-hour charts, while WebSockets stream live deltas. The history page adds min/max/avg summaries and last-updated timestamps.
 - **Scalability.** Additional Celery workers, Redis queues, and indexed tables handle growth; Docker Compose mirrors production deployment, easing moves to managed infrastructure.
-
-## Time Spent
-
-Approximately 14 hours end-to-end (core build, ingestion, alerting, deployment polish, docs).
 
 ## AI Disclosure
 
