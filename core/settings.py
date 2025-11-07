@@ -7,10 +7,31 @@ load_dotenv()
 
 BASE_DIR = Path(__file__).resolve().parent.parent
 
+# SECURITY WARNING: Insecure defaults for development.
+# In production, these MUST be set via environment variables:
+# - SECRET_KEY: Must be a strong, random secret (never use "dev_only" in production)
+# - DEBUG: Must be "False" in production
+# - ALLOWED_HOSTS: Must list allowed domain names in production
 SECRET_KEY = os.getenv("SECRET_KEY", "dev_only")
 DEBUG = os.getenv("DEBUG", "True") == "True"
 
 ALLOWED_HOSTS = os.getenv("ALLOWED_HOSTS", "").split(",") if os.getenv("ALLOWED_HOSTS") else []
+
+# Warn if insecure defaults are detected in production-like environments
+if SECRET_KEY == "dev_only" and os.getenv("DJANGO_ENV") not in (None, "development", "dev"):
+    import warnings
+    warnings.warn(
+        "SECRET_KEY is using insecure default 'dev_only'. "
+        "Set SECRET_KEY environment variable in production!",
+        UserWarning
+    )
+
+if DEBUG and os.getenv("DJANGO_ENV") not in (None, "development", "dev"):
+    import warnings
+    warnings.warn(
+        "DEBUG is True. Set DEBUG=False environment variable in production!",
+        UserWarning
+    )
 
 INSTALLED_APPS = [
     'django.contrib.admin',
