@@ -2,9 +2,9 @@ name: CI
 
 on:
   push:
-    branches: ["delivery"]
+    branches: ["main"]
   pull_request:
-    branches: ["delivery"]
+    branches: ["main"]
 
 env:
   PYTHONDONTWRITEBYTECODE: "1"
@@ -99,4 +99,3 @@ jobs:
         env:
           DJANGO_SETTINGS_MODULE: core.test_settings
         run: python manage.py test telemetry
-

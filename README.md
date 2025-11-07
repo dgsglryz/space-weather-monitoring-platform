@@ -21,6 +21,7 @@ Mission-ready weather intelligence for satellite ground stations. The platform i
 - Admin login (optional): request via email, or create locally with `createsuperuser`
 
 > Submission checklist reminder:
+>
 > 1. Share deployed URL and credentials above
 > 2. Include private GitHub link
 > 3. Document setup notes (env vars, external services)
@@ -90,14 +91,14 @@ Services: `web` (Daphne ASGI), `worker`, `beat`, `db` (PostgreSQL 15), `redis`. 
 
 All variables are documented in `.env.example`; copy to `.env` and adjust for your environment.
 
-| Category | Keys |
-| --- | --- |
-| Django | `SECRET_KEY`, `DEBUG`, `DJANGO_ENV`, `ALLOWED_HOSTS` |
-| Database | `POSTGRES_DB`, `POSTGRES_USER`, `POSTGRES_PASSWORD`, `POSTGRES_HOST`, `POSTGRES_PORT` |
-| Celery & Cache | `CELERY_BROKER_URL`, `CELERY_RESULT_BACKEND`, `CACHE_URL`, `REDIS_HOST`, `REDIS_PORT` |
-| External APIs | `OWM_API_KEY` |
-| Email | `EMAIL_BACKEND`, `EMAIL_HOST`, `EMAIL_PORT`, `EMAIL_USE_TLS`, `EMAIL_USE_SSL`, `EMAIL_HOST_USER`, `EMAIL_HOST_PASSWORD`, `DEFAULT_FROM_EMAIL`, `ALERT_NOTIFICATION_EMAIL`, `EMAIL_TIMEOUT`, `ALERT_EMAIL_MAX_ATTEMPTS`, `ALERT_EMAIL_RETRY_BACKOFF_SECONDS` |
-| UI/Cache tuning | `WEATHER_CACHE_SECONDS`, `DASHBOARD_REFRESH_MAX_AGE_SECONDS`, `DASHBOARD_REFRESH_COOLDOWN_SECONDS` |
+| Category        | Keys                                                                                                                                                                                                                                                        |
+| --------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Django          | `SECRET_KEY`, `DEBUG`, `DJANGO_ENV`, `ALLOWED_HOSTS`                                                                                                                                                                                                        |
+| Database        | `POSTGRES_DB`, `POSTGRES_USER`, `POSTGRES_PASSWORD`, `POSTGRES_HOST`, `POSTGRES_PORT`                                                                                                                                                                       |
+| Celery & Cache  | `CELERY_BROKER_URL`, `CELERY_RESULT_BACKEND`, `CACHE_URL`, `REDIS_HOST`, `REDIS_PORT`                                                                                                                                                                       |
+| External APIs   | `OWM_API_KEY`                                                                                                                                                                                                                                               |
+| Email           | `EMAIL_BACKEND`, `EMAIL_HOST`, `EMAIL_PORT`, `EMAIL_USE_TLS`, `EMAIL_USE_SSL`, `EMAIL_HOST_USER`, `EMAIL_HOST_PASSWORD`, `DEFAULT_FROM_EMAIL`, `ALERT_NOTIFICATION_EMAIL`, `EMAIL_TIMEOUT`, `ALERT_EMAIL_MAX_ATTEMPTS`, `ALERT_EMAIL_RETRY_BACKOFF_SECONDS` |
+| UI/Cache tuning | `WEATHER_CACHE_SECONDS`, `DASHBOARD_REFRESH_MAX_AGE_SECONDS`, `DASHBOARD_REFRESH_COOLDOWN_SECONDS`                                                                                                                                                          |
 
 ---
 
@@ -167,6 +168,7 @@ Test settings swap PostgreSQL/Redis for in-memory backends and run Celery eagerl
 - If more time: add per-user notification preferences, historical rollups, and automated browser tests
 
 When submitting, email `hiring@perceptivespace.com` with:
+
 1. GitHub repository link (private)
 2. Deployed demo URL
 3. Credentials and setup caveats (env vars, external services)
